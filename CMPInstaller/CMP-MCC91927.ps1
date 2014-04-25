@@ -13,7 +13,7 @@
 
 param(
 	# Database connection string to query WHOIS
-	[Parameter(Mandatory=$True, Position=1)]
+	[Parameter(Mandatory=$false, Position=1)]
 	[string]$whoisConnectionString = "Server=localhost;Database=Rave1;uid=sa;pwd=!Qazse44;Connection Timeout=300",
 	# Waiting timeout in seconds for stopping/starting core service. 
 	[int]$serviceTimeoutSeconds = 30
@@ -34,8 +34,6 @@ $logPath = [System.IO.Path]::Combine($workDir, $timestamp, "log.txt")
 if(!(Test-Path $logPath)){
     new-item -Path $logPath -ItemType file -Force | Out-Null
 }
-
-Main
 
 function Main(){
 	Log-Info "Query WHOIS server to get the deployment information for all sites."
@@ -121,9 +119,7 @@ function Patch-Site($site){
 		$connection.Open()
 		$needsPatch = (Check-IfNeedToPatch $site $connection)
 		if($needsPatch){
-			forEach($node in $site.Nodes) {
-				Patch-NodeServer $node
-			}
+			$site.Nodes | ForEach { Patch-NodeServer $_ }
 			Insert-PatchInfo $site $connection 
 		}else{
 			Log-Info("This site has been patched.")
@@ -241,3 +237,5 @@ function Log-Error([string]$message){
 	write-error ("> " + $message) -Verbose 
 	([System.DateTime]::Now.ToString("dd/MMM/yyyy HH:mm:ss.fff") + " [Error] " + $message) | out-file -Filepath $logPath -append
 }
+
+Main
