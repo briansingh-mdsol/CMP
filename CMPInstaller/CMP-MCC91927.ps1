@@ -238,4 +238,21 @@ function Log-Error([string]$message){
 	([System.DateTime]::Now.ToString("dd/MMM/yyyy HH:mm:ss.fff") + " [Error] " + $message) | out-file -Filepath $logPath -append
 }
 
+#
+# The decryption algorithm was ported from the C# source code of RavePassword tool.
+# "34W45O7EJ4L23S2J3432L5F67T28JSD9I" is standard Medidata Rave password generation key.
+# 
+function Decrypt([string]$data){
+	$dataBytes = [System.Convert]::FromBase64String($data)
+	$tripleDes = New-Object System.Security.Cryptography.TripleDESCryptoServiceProvider
+	$hashMd5 =  New-Object System.Security.Cryptography.MD5CryptoServiceProvider
+	$tripleDes.Key = $hashMd5.ComputeHash([System.Text.Encoding]::UTF8.GetBytes("34W45O7EJ4L23S2J3432L5F67T28JSD9I")) 
+	$tripleDes.Mode = [System.Security.Cryptography.CipherMode]::ECB
+	$tripleDes.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
+	$cTransform = $tripleDes.CreateDecryptor()
+	$decryptedBytes = $cTransform.TransformFinalBlock($dataBytes,0, ($dataBytes.Length))
+	[void]$tripleDes.Clear()
+	return [System.Text.Encoding]::UTF8.GetString($decryptedBytes)
+}
+
 Main
