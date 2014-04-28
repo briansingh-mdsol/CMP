@@ -145,8 +145,8 @@ function Patch-NodeServer($node){
 			# App server
 			Log-Info ($node.ComputerName + " is an application server")
 			$service = get-Service $node.CoreServiceName -ComputerName $node.ComputerName -ErrorAction stop
-			Backup-Assembly $node
 			Stop-CoreService $service
+			Backup-Assembly $node
 			Replace-Assembly $node
 			Start-CoreService $service
 		}else{
