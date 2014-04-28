@@ -14,7 +14,7 @@
 param(
 	# Database connection string to query WHOIS
 	[Parameter(Mandatory=$false, Position=1)]
-	[string]$whoisConnectionString = "Server=localhost;Database=Rave1;uid=sa;pwd=!Qazse44;Connection Timeout=300",
+	[string]$whoisServerName = "(local)",
 	# Waiting timeout in seconds for stopping/starting core service. 
 	[int]$serviceTimeoutSeconds = 30
 )
@@ -23,6 +23,7 @@ Add-Type -AssemblyName "System.ServiceProcess"
 Add-Type -AssemblyName "System.IO"
 Add-Type -AssemblyName "System.Transactions"
 
+$whoisConnectionString = [string]::Format("Data Source={0};Initial Catalog=whois;Integrated Security=SSPI; Connection Timeout=600", $whoisServerName)
 $workDir = Split-Path -parent $PSCommandPath
 $patchDir = [System.IO.Path]::Combine($workDir, "patches")
 $targetVersions = Get-ChildItem $patchDir | Foreach {$_.Name}
@@ -37,7 +38,7 @@ if(!(Test-Path $logPath)){
 
 function Main(){
 	Log-Info "Query WHOIS server to get the deployment information for all sites."
-	$whois = Get-SiteInfoFromWhoIs-Stub $whoisConnectionString | where {$targetVersions -contains $_.RaveVersion}
+	$whois = Get-SiteInfoFromWhoIs $whoisConnectionString | where {$targetVersions -contains $_.RaveVersion}
 	Log-Info ([String]::Format("According to WHOIS, there are {0} sites to handle in all.", $whois.Length))
 	Log-Info
 	$index = 1
@@ -94,21 +95,39 @@ function Get-SiteInfoFromWhoIs($connectionString){
 	Try{
 		$connection.Open()
 		$cmd = $connection.CreateCommand()
-		$cmd.CommandText  = "select top 1 * from Users"
+		$cmd.CommandText  = "
+select distinct s.url Url, s.RaveVersion RaveVersion, 'Data Source='+s.sqlserver+';Initial Catalog='+s.dbname+';Integrated Security=SSPI; Connection Timeout=600' DbConnectionString, 
+b.type NodeType, b.server ServerName, b.config ServerRootPath, p.Account Account, p.Password Password
+from sites s, siblings b, Clients c, RavePassword p
+where s.site_id = b.site_id
+and b.site_id = p.site_id
+and ((b.type = 'Web' and p.PassType = 'Rave') or (b.type = 'App' and p.PassType = 'Rpt'))
+and ((s.RaveVersion in ('5.6.5.45','5.6.5.50','5.6.5.66','5.6.5.71') and b.type = 'App') or s.RaveVersion = '5.6.5.92')
+and s.disabled=0
+and b.active = 1
+order by s.url, b.type"
 		$table = new-object "System.Data.DataTable"
 		$table.Load($cmd.ExecuteReader())
- 
-		#$format = @{Expression={$_.FirstName}},@{Expression={$_.LastName}}
 
-		#$table | Where-Object {$_.Surname -like "*sson" -and $_.Born -lt 1990} | format-table $format
-		#$array = @($table | select -ExpandProperty FirstName)
-
-		$array = $table | Select-object FirstName, LastName
+		$array = $table | Select-object Url, RaveVersion, DbConnectionString, NodeType, ServerName, ServerRootPath, Account, Password
 	} finally {
 		$connection.Dispose()
 	}
 
-	return $array
+	$result = @()
+	$currentSite
+	ForEach($row in $array){
+		if($null -eq $currentSite -or $currentSite.Url -ne $row.Url){
+			if($null -ne $currentSite){	$result += $currentSite	}
+			$currentSite = @{Url=$row.Url; RaveVersion=$row.RaveVersion; DbConnectionString = $row.DbConnectionString; Nodes = @()}
+		}
+		$currentSite.Nodes += @{NodeType=$row.NodeType; ServerName = $row.ServerName; ServerRootPath = $row.ServerRootPath; `
+								Account = Decrypt($row.Account); Password = Decrypt($row.Password)}
+	}
+
+	if($null -ne $currentSite){	$result += $currentSite	}
+
+	return $result
 }
 
 function Patch-Site($site){
@@ -136,15 +155,13 @@ function Patch-Site($site){
 
 function Patch-NodeServer($node){
 	try{
-		if($node.NodeType -eq 0) {
-			# Web server
+		if($node.NodeType -eq "Web") {
 			Log-Info ($node.ComputerName + " is a web server")
 			Backup-Assembly $node
 			Replace-Assembly $node
-		}elseif($node.NodeType -eq 1){
-			# App server
+		}elseif($node.NodeType -eq "App"){
 			Log-Info ($node.ComputerName + " is an application server")
-			$service = get-Service $node.CoreServiceName -ComputerName $node.ComputerName -ErrorAction stop
+			$service = get-Service $node.CoreServiceName -ComputerName $node.ServerName -ErrorAction stop
 			Stop-CoreService $service
 			Backup-Assembly $node
 			Replace-Assembly $node
