@@ -57,34 +57,6 @@ function Main(){
 	Log-Info ([String]::Format("{0} sites all finished. {1} succeeded, {2} failed. See log {3}", $whois.Length, $okCount, $ngCount, $logPath))
 }
 
-############### For develop only (begins from here) #################
-############### Must remove before final release
-function Get-SiteInfoFromWhoIs-Stub($connectionString){
-	$tmp = @{}
-	$tmp.ComputerName="win81"
-	$tmp.CoreServiceName = "Spooler"
-	$tmp.RaveVersion = "5.6.5.71"
-	$tmp.NodeType = 1	# 0 is web; 1 is app
-	$tmp.TargetAssemblyPath = "\\win81\C$\GitHub\Rave\Medidata.Core\Medidata.Core.Service\bin\release\Medidata.Core.Objects.dll"
-
-	$tmp2 = @{}
-	$tmp2.ComputerName="win81"
-	$tmp2.CoreServiceName = "Spooler"
-	$tmp2.RaveVersion = "5.6.5.71"
-	$tmp2.NodeType = 1	# 0 is web; 1 is app
-	$tmp2.TargetAssemblyPath = "\\win81\C$\GitHub\Rave\Medidata.Core\Medidata.Core.Service\bin\release\Medidata.Core.Objects.dll"
-
-	$site = @{}
-	$site.Url = "xxxxx.mdsol.com"
-	$site.RaveVersion = "5.6.5.71"
-	$site.PatchNumber = "CMP XXX"
-	$site.DbConnectionString = "Server=localhost;Database=Rave1;uid=sa;pwd=!Qazse44;Connection Timeout=300"
-	$site.Nodes = @($tmp, $tmp2)
-
-	return @($site)
-}
-############### For develop only (ends up to above) #################
-
 function Get-SiteInfoFromWhoIs($connectionString){
 	$connection = New-Object System.Data.SqlClient.SqlConnection $connectionString
 	$rows = @()
@@ -93,21 +65,14 @@ function Get-SiteInfoFromWhoIs($connectionString){
 	Try{
 		$connection.Open()
 		$cmd = $connection.CreateCommand()
-		$cmd.CommandText  = "
-select distinct s.url Url, s.RaveVersion RaveVersion, 'Data Source='+s.sqlserver+';Initial Catalog='+s.dbname+';Integrated Security=SSPI; Connection Timeout=300' DbConnectionString, 
-b.type NodeType, b.server ServerName, b.config ServerRootPath, p.Account Account, p.Password Password
-from sites s, siblings b, Clients c, RavePassword p
-where s.site_id = b.site_id
-and b.site_id = p.site_id
-and ((b.type = 'Web' and p.PassType = 'Rave') or (b.type = 'App' and p.PassType = 'Rpt'))
-and ((s.RaveVersion in ('5.6.5.45','5.6.5.50','5.6.5.66','5.6.5.71') and b.type = 'App') or s.RaveVersion = '5.6.5.92')
-and s.disabled=0
-and b.active = 1
-order by s.url, b.type"
-		$table = new-object "System.Data.DataTable"
+		$cmd.CommandType = [System.Data.CommandType]::StoredProcedure
+		$cmd.CommandText = "usp_GetActiveRaveConfigByVersion"
+		$table = New-Object "System.Data.DataTable"
 		$table.Load($cmd.ExecuteReader())
 
-		$rows = $table | Select-object Url, RaveVersion, DbConnectionString, NodeType, ServerName, ServerRootPath, Account, Password
+		$rows = $table | `
+				Where-Object {($_.RaveVersion -eq "5.6.5.92") -or (($_.RaveVersion -in @('5.6.5.45', '5.6.5.50', '5.6.5.66', '5.6.5.71')) -and ($_.Type -eq "App"))} | `
+				Select-object Url, RaveVersion, DbServer, DbName, Account, Password, Type, ServerName, ServiceName, ServerRootPath
 	} finally {
 		$connection.Dispose()
 	}
@@ -119,10 +84,21 @@ order by s.url, b.type"
 			if($null -ne $currentSite){ 
 				$sites += $currentSite	
 			}
-			$currentSite = @{Url=$row.Url; RaveVersion=$row.RaveVersion; DbConnectionString = $row.DbConnectionString; Nodes = @()}
+			$dbConnStr = [string]::Format("Server={0};Database={1};uid={2};pwd={3};Connection Timeout=300", 
+											$row.DbServer, 
+											$row.DbName, 
+											(Decrypt $row.Account), 
+											(Decrypt $row.Password))
+			$currentSite = @{ Url=$row.Url; RaveVersion=$row.RaveVersion; Nodes = @(); DbConnectionString = $dbConnStr}
 		}
-		$currentSite.Nodes += @{NodeType=$row.NodeType; ServerName = $row.ServerName; ServerRootPath = $row.ServerRootPath; `
-								Account = Decrypt($row.Account); Password = Decrypt($row.Password)}
+
+		$node = @{ Type=$row.Type; ServerName = $row.ServerName; ServerRootPath = $row.ServerRootPath }
+		if($node.Type -eq "Web"){
+			$node.ServerRootPath = [System.IO.Path]::Combine($node.ServerRootPath, "bin")
+		}else{
+			$node.CoreServiceName = [string]::Format("Medidata Core Service - ""{0}""", $row.ServiceName)
+		}
+		$currentSite.Nodes += $node
 	}
 
 	if($null -ne $currentSite){	
@@ -157,11 +133,11 @@ function Patch-Site($site){
 
 function Patch-NodeServer($node){
 	try{
-		if($node.NodeType -eq "Web") {
+		if($node.Type -eq "Web") {
 			Log-Info ($node.ComputerName + " is a web server")
 			Backup-Assembly $node
 			Replace-Assembly $node
-		}elseif($node.NodeType -eq "App"){
+		}elseif($node.Type -eq "App"){
 			Log-Info ($node.ComputerName + " is an application server")
 			$service = get-Service $node.CoreServiceName -ComputerName $node.ServerName -ErrorAction stop
 			Stop-CoreService $service
@@ -169,7 +145,7 @@ function Patch-NodeServer($node){
 			Replace-Assembly $node
 			Start-CoreService $service
 		}else{
-			Log-Info ($node.ComputerName + " is an unknown type server. " + $node.NodeType)
+			Log-Info ($node.ComputerName + " is an unknown type server. " + $node.Type)
 		}
 		return $true
 	}catch{
