@@ -40,7 +40,6 @@ function Main(){
 	Log-Info "Query WHOIS server to get the deployment information for all sites."
 	$whois = Get-SiteInfoFromWhoIs $whoisConnectionString | where {$targetVersions -contains $_.RaveVersion}
 	Log-Info ([String]::Format("According to WHOIS, there are {0} sites to handle in all.", $whois.Length))
-	Log-Info
 	$index = 1
 	$okCount = 0
 	$ngCount = 0
@@ -48,7 +47,6 @@ function Main(){
 	ForEach($site in $whois) {
 		Log-Info ([String]::Format("[{0}/{1}] Working on site {2} (v{3})", @($index, $whois.Length, $site.Url, $site.RaveVersion)))
 		$result = Patch-Site $site
-		Log-Info
 		$index++
 		if($result){
 			$okCount++
@@ -89,14 +87,14 @@ function Get-SiteInfoFromWhoIs-Stub($connectionString){
 
 function Get-SiteInfoFromWhoIs($connectionString){
 	$connection = New-Object System.Data.SqlClient.SqlConnection $connectionString
-	$array = @()
+	$rows = @()
 
 	# TODO: Awaiting Whois end development.
 	Try{
 		$connection.Open()
 		$cmd = $connection.CreateCommand()
 		$cmd.CommandText  = "
-select distinct s.url Url, s.RaveVersion RaveVersion, 'Data Source='+s.sqlserver+';Initial Catalog='+s.dbname+';Integrated Security=SSPI; Connection Timeout=600' DbConnectionString, 
+select distinct s.url Url, s.RaveVersion RaveVersion, 'Data Source='+s.sqlserver+';Initial Catalog='+s.dbname+';Integrated Security=SSPI; Connection Timeout=300' DbConnectionString, 
 b.type NodeType, b.server ServerName, b.config ServerRootPath, p.Account Account, p.Password Password
 from sites s, siblings b, Clients c, RavePassword p
 where s.site_id = b.site_id
@@ -109,25 +107,29 @@ order by s.url, b.type"
 		$table = new-object "System.Data.DataTable"
 		$table.Load($cmd.ExecuteReader())
 
-		$array = $table | Select-object Url, RaveVersion, DbConnectionString, NodeType, ServerName, ServerRootPath, Account, Password
+		$rows = $table | Select-object Url, RaveVersion, DbConnectionString, NodeType, ServerName, ServerRootPath, Account, Password
 	} finally {
 		$connection.Dispose()
 	}
 
-	$result = @()
+	$sites = @()
 	$currentSite
-	ForEach($row in $array){
+	ForEach($row in $rows){
 		if($null -eq $currentSite -or $currentSite.Url -ne $row.Url){
-			if($null -ne $currentSite){	$result += $currentSite	}
+			if($null -ne $currentSite){ 
+				$sites += $currentSite	
+			}
 			$currentSite = @{Url=$row.Url; RaveVersion=$row.RaveVersion; DbConnectionString = $row.DbConnectionString; Nodes = @()}
 		}
 		$currentSite.Nodes += @{NodeType=$row.NodeType; ServerName = $row.ServerName; ServerRootPath = $row.ServerRootPath; `
 								Account = Decrypt($row.Account); Password = Decrypt($row.Password)}
 	}
 
-	if($null -ne $currentSite){	$result += $currentSite	}
+	if($null -ne $currentSite){	
+		$sites += $currentSite	
+	}
 
-	return $result
+	return $sites
 }
 
 function Patch-Site($site){
@@ -146,7 +148,7 @@ function Patch-Site($site){
 
 		$scope.Complete()
 	} catch {
-		Log-Error($_.Exception.ToString())
+		Log-Error($_)
 	} finally {
 		$connection.Dispose()
 		$scope.Dispose()
@@ -171,7 +173,7 @@ function Patch-NodeServer($node){
 		}
 		return $true
 	}catch{
-		Log-Error($_.Exception.ToString())
+		Log-Error($_)
 		Restore-Assembly $node
 		return $false
 	}
@@ -250,8 +252,9 @@ function Log-Info([string]$message){
 	([System.DateTime]::Now.ToString("dd/MMM/yyyy HH:mm:ss.fff") + " [Info] " + $message) | out-file -Filepath $logPath -append
 }
 
-function Log-Error([string]$message){
-	write-error ("> " + $message) -Verbose 
+function Log-Error($errorRecord){
+	$message = $errorRecord.ScriptStackTrace + "`r`n" + $errorRecord.Exception.ToString()
+	write-error $message
 	([System.DateTime]::Now.ToString("dd/MMM/yyyy HH:mm:ss.fff") + " [Error] " + $message) | out-file -Filepath $logPath -append
 }
 
