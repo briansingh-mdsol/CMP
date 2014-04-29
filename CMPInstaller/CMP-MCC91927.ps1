@@ -12,9 +12,8 @@
 #
 
 param(
-	# Database connection string to query WHOIS
-	[Parameter(Mandatory=$false, Position=1)]
-	[string]$whoisServerName = "(local)",
+	[Parameter(Mandatory=$true, Position=1)]
+	[string]$whoisServerName,
 	# Waiting timeout in seconds for stopping/starting core service. 
 	[int]$serviceTimeoutSeconds = 30
 )
@@ -23,6 +22,8 @@ Add-Type -AssemblyName "System.ServiceProcess"
 Add-Type -AssemblyName "System.IO"
 Add-Type -AssemblyName "System.Transactions"
 
+$patchNumber = "PatchXXX" #TODO: Need to confirm the Patch Number
+$assemblyFileName = "Medidata.Core.Objects.dll"
 $whoisConnectionString = [string]::Format("Data Source={0};Initial Catalog=whois;Integrated Security=SSPI; Connection Timeout=600", $whoisServerName)
 $workDir = Split-Path -parent $PSCommandPath
 $patchDir = [System.IO.Path]::Combine($workDir, "patches")
@@ -89,14 +90,15 @@ function Get-SiteInfoFromWhoIs($connectionString){
 											$row.DbName, 
 											(Decrypt $row.Account), 
 											(Decrypt $row.Password))
-			$currentSite = @{ Url=$row.Url; RaveVersion=$row.RaveVersion; Nodes = @(); DbConnectionString = $dbConnStr}
+			$currentSite = @{ Url=$row.Url; RaveVersion=$row.RaveVersion; Nodes = @(); DbConnectionString = $dbConnStr; PatchNumber=$patchNumber}
 		}
 
-		$node = @{ Type=$row.Type; ServerName = $row.ServerName; ServerRootPath = $row.ServerRootPath }
-		if($node.Type -eq "Web"){
-			$node.ServerRootPath = [System.IO.Path]::Combine($node.ServerRootPath, "bin")
-		}else{
+		$node = @{ Type=$row.Type; ServerName = $row.ServerName; RaveVersion=$row.RaveVersion }
+		if($node.Type -eq "App"){
+			$node.TargetAssemblyPath = [System.IO.Path]::Combine($row.ServerRootPath, $assemblyFileName)
 			$node.CoreServiceName = [string]::Format("Medidata Core Service - ""{0}""", $row.ServiceName)
+		}else{
+			$node.TargetAssemblyPath = [System.IO.Path]::Combine($row.ServerRootPath, "bin", $assemblyFileName)
 		}
 		$currentSite.Nodes += $node
 	}
@@ -116,49 +118,32 @@ function Patch-Site($site){
 		$connection.Open()
 		$needsPatch = (Check-IfNeedToPatch $site $connection)
 		if($needsPatch){
-			$site.Nodes | ForEach { Patch-NodeServer $_ }
+			$site.Nodes | ForEach { Backup-Assembly $_ }
+			$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Stop-CoreService $_ }
+			$site.Nodes | ForEach { Replace-Assembly $_ }
+			$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Start-CoreService $_ }
 			Insert-PatchInfo $site $connection 
 		}else{
 			Log-Info("This site has been patched.")
 		}
 
 		$scope.Complete()
+		return $true
 	} catch {
+		$site.Nodes | ForEach { Restore-Assembly $_ }
 		Log-Error($_)
 	} finally {
 		$connection.Dispose()
 		$scope.Dispose()
 	}
-}
 
-function Patch-NodeServer($node){
-	try{
-		if($node.Type -eq "Web") {
-			Log-Info ($node.ComputerName + " is a web server")
-			Backup-Assembly $node
-			Replace-Assembly $node
-		}elseif($node.Type -eq "App"){
-			Log-Info ($node.ComputerName + " is an application server")
-			$service = get-Service $node.CoreServiceName -ComputerName $node.ServerName -ErrorAction stop
-			Stop-CoreService $service
-			Backup-Assembly $node
-			Replace-Assembly $node
-			Start-CoreService $service
-		}else{
-			Log-Info ($node.ComputerName + " is an unknown type server. " + $node.Type)
-		}
-		return $true
-	}catch{
-		Log-Error($_)
-		Restore-Assembly $node
-		return $false
-	}
+	return $false
 }
 
 function Check-IfNeedToPatch($site, $connection){
 	$cmd = $connection.CreateCommand();
 	$cmd.CommandType = [System.Data.CommandType]::Text
-	$cmd.CommandText = "SELECT TOP 1 CAST(COUNT(*) AS Bit) FROM RavePatches WHERE RaveVersion = @raveVersion AND PatchNumber = @patchNumber"
+	$cmd.CommandText = "SELECT CAST(COUNT(*) AS Bit) FROM RavePatches WHERE RaveVersion = @raveVersion AND PatchNumber = @patchNumber"
 	[void]$cmd.Parameters.AddWithValue("@raveVersion", $site.RaveVersion)
 	[void]$cmd.Parameters.AddWithValue("@patchNumber", $site.PatchNumber)
 	$count = $cmd.ExecuteScalar()
@@ -176,47 +161,49 @@ function Insert-PatchInfo($site, $connection){
 	[void]$cmd.ExecuteNonQuery()
 }
 
-function Stop-CoreService($service){
+function Stop-CoreService($node){
+	$service = get-Service $node.CoreServiceName -ComputerName $node.ServerName -ErrorAction stop
 	if($service.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Stopped){
-		Log-Info "Stopping core service"
+		Log-Info ([string]::Format("Stopping core service '{0}' at {1}", $node.CoreServiceName, $node.ServerName))
 		$service.Stop()
 		$serviceTimeoutTimeSpan = New-Object System.TimeSpan 0, 0, $serviceTimeoutSeconds
 		$service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Stopped, $serviceTimeoutTimeSpan)
 		$service.Refresh()
-		Log-Info ("Core service is " + $service.Status)
+		Log-Info ("The core service now is " + $service.Status)
 	}
 }
 
-function Start-CoreService($service){
+function Start-CoreService($node){
+	$service = get-Service $node.CoreServiceName -ComputerName $node.ServerName -ErrorAction stop
 	if($service.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Running){
-		Log-Info "Starting core service" 
+		Log-Info ([string]::Format("Starting core service '{0}' at {1}", $node.CoreServiceName, $node.ServerName))
 		$service.Start()
 		$serviceTimeoutTimeSpan = New-Object System.TimeSpan 0, 0, $serviceTimeoutSeconds
 		$service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Running, $serviceTimeoutTimeSpan)
 		$service.Refresh()
-		Log-Info ("Core service is " + $service.Status)
+		Log-Info ("The core service now is " + $service.Status)
 	}
 }
 
 function Backup-Assembly($node){
-	$backupPath = [System.IO.Path]::Combine($backupDir, $node.ComputerName + "(" + $node.RaveVersion + ")", [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
-	ForceCopyFile $node.TargetAssemblyPath $backupPath
+	$backupPath = [System.IO.Path]::Combine($backupDir, $node.ServerName + "(" + $node.RaveVersion + ")", [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
+	ForceCopyFile $node.TargetAssemblyPath $backupPath "Backup"
 }
 
 function Replace-Assembly($node){
 	$patchFilePath = [System.IO.Path]::Combine($patchDir, $node.RaveVersion, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
-	ForceCopyFile $patchFilePath $node.TargetAssemblyPath
+	ForceCopyFile $patchFilePath $node.TargetAssemblyPath "Patch"
 }
 
 function Restore-Assembly($node){
-	$backupPath = [System.IO.Path]::Combine($backupDir, $node.ComputerName + "(" + $node.RaveVersion + ")", [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
+	$backupPath = [System.IO.Path]::Combine($backupDir, $node.ServerName + "(" + $node.RaveVersion + ")", [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
 	if(Test-Path $backupPath){
-		ForceCopyFile $backupPath $node.TargetAssemblyPath
+		ForceCopyFile $backupPath $node.TargetAssemblyPath "Rollback"
 	}
 }
 
-function ForceCopyFile($source, $destination){
-	Log-Info ([String]::Format("Copy file {0} -> {1}", $source, $destination))
+function ForceCopyFile($source, $destination, $actionName){
+	Log-Info ([String]::Format("{0} file {1} -> {2}", $actionName, $source, $destination))
 	if(!(Test-Path $destination)){
 		new-item -force -path $destination -type file | Out-Null
 	}
