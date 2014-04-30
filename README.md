@@ -15,12 +15,12 @@ This script uses "Build Version" as identity to handle the patch process.
 ## Workflow of the script
 1. Connect WHOIS database to get deployment information for all sites (or say "URL" in Medidata language) and their sibling nodes.
 2. Filter out those sites need to be patched.
-2. Loop through each site
+2. Looply execute step 3~7 on each site
 3.    Backup original Medidata.Core.Objects.dll to the backup folder.
 4.    Try to stop the core service of each sibling if it's an App server.
 5.    Copy new dll file to replace those old ones on each sibling.
 6.    Try to start the core service of each sibling if it's an App server.
-7.    If any error happens between step 3 and 6, restore the dll from backup. Otherwise, insert one record into site's RavePatches table. The PatchNumber is constantly "MCC-91927".
+7.    If any error happens between step 3~6, restore the dll from backup. Otherwise, insert one record into site's RavePatches table. The PatchNumber is constantly "MCC-91927".
 
 ## How to use
 
