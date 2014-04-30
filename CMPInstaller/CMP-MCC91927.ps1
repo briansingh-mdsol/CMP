@@ -22,7 +22,7 @@ Add-Type -AssemblyName "System.ServiceProcess"
 Add-Type -AssemblyName "System.IO"
 Add-Type -AssemblyName "System.Transactions"
 
-$patchNumber = "PatchXXX" #TODO: Need to confirm the Patch Number
+$patchNumber = "MCC-91927"
 $assemblyFileName = "Medidata.Core.Objects.dll"
 $whoisConnectionString = [string]::Format("Data Source={0};Initial Catalog=whois;Integrated Security=SSPI; Connection Timeout=600", $whoisServerName)
 $workDir = Split-Path -parent $PSCommandPath
