@@ -45,13 +45,13 @@ if(!(Test-Path $logPath)){
 function Main(){
 	Log-Info "Query WHOIS server to get the deployment information for all sites."
 	$whois = Get-SiteInfoFromWhoIs $whoisConnectionString | where {$targetVersions -contains $_.RaveVersion}
-	Log-Info ([String]::Format("According to WHOIS, there are {0} sites to handle in all.", $whois.Length))
+	Log-Info ([String]::Format("According to WHOIS, there are {0} URLs to handle in all.", $whois.Length))
 	$index = 1
 	$okCount = 0
 	$ngCount = 0
-
+	$siblingCount = 0
 	ForEach($site in $whois) {
-		Log-Info ([String]::Format("[{0}/{1}] Working on site {2} (v{3})", @($index, $whois.Length, $site.Url, $site.RaveVersion)))
+		Log-Info ([String]::Format("[{0}/{1}] Working on {2} (v{3}) which has {4} siblings", @($index, $whois.Length, $site.Url, $site.RaveVersion, $site.Nodes.Count)))
 		$result = Patch-Site $site
 		$index++
 		if($result){
@@ -59,8 +59,10 @@ function Main(){
 		}else{
 			$ngCount++
 		}
+		$siblingCount += $site.Nodes.Count
+		Log-Info
 	}
-	Log-Info ([String]::Format("{0} sites all finished. {1} succeeded, {2} failed. See log {3}", $whois.Length, $okCount, $ngCount, $logPath))
+	Log-Info ([String]::Format("{0} URLs ({1} siblings) all finished. {2} patched, {3} failed. See log {4}", $whois.Length, $siblingCount, $okCount, $ngCount, $logPath))
 }
 
 function Get-SiteInfoFromWhoIs($connectionString){
@@ -231,7 +233,16 @@ function ForceCopyFile($source, $destination, $actionName){
 }
 
 function Log-Info([string]$message){
-	write-host ("> " + $message)
+	$regex = [regex] "(.*)(\[[0-9]+/[0-9]+])(.*)"
+	if($regex.IsMatch($message)){
+		$groups = $regex.Match($message).Groups
+		$defaultBgColor = $host.UI.RawUI.BackgroundColor
+		write-host ("> " + $groups[1].Value) -NoNewline
+		write-host $groups[2].Value -NoNewline -BackgroundColor "yellow" -ForegroundColor "blue"
+		write-host $groups[3].Value -BackgroundColor $defaultBgColor
+	}else{
+		write-host ("> " + $message)
+	}
 	([System.DateTime]::Now.ToString("dd/MMM/yyyy HH:mm:ss.fff") + " [Info] " + $message) | out-file -Filepath $logPath -append
 }
 
