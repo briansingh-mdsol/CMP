@@ -12,10 +12,15 @@
 #
 
 param(
+	# The server name of WHOIS database.
 	[Parameter(Mandatory=$true, Position=1)]
 	[string]$whoisServerName,
 	# Waiting timeout in seconds for stopping/starting core service. 
-	[int]$serviceTimeoutSeconds = 30
+	[Parameter(Mandatory=$false, Position=2)]
+	[int]$serviceTimeoutSeconds = 30,
+	# How many times to retry stopping/starting core service.
+	[Parameter(Mandatory=$false, Position=3)]
+	[int]$maxRetryTimes = 3
 )
 
 Add-Type -AssemblyName "System.ServiceProcess"
@@ -162,26 +167,41 @@ function Insert-PatchInfo($site, $connection){
 }
 
 function Stop-CoreService($node){
-	$service = get-Service $node.CoreServiceName -ComputerName $node.ServerName -ErrorAction stop
-	if($service.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Stopped){
-		Log-Info ([string]::Format("Stopping core service '{0}' at {1}", $node.CoreServiceName, $node.ServerName))
-		$service.Stop()
-		$serviceTimeoutTimeSpan = New-Object System.TimeSpan 0, 0, $serviceTimeoutSeconds
-		$service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Stopped, $serviceTimeoutTimeSpan)
-		$service.Refresh()
-		Log-Info ("The core service now is " + $service.Status)
-	}
+	Ope-CoreService $node "stop"
 }
 
 function Start-CoreService($node){
+	Ope-CoreService $node "start"
+}
+
+function Ope-CoreService($node, [string]$startOrStop){
+	[System.ServiceProcess.ServiceControllerStatus]$waitStatus = [System.ServiceProcess.ServiceControllerStatus]::Stopped
+	if($startOrStop -eq "start"){
+		$waitStatus = [System.ServiceProcess.ServiceControllerStatus]::Running
+	}
+
 	$service = get-Service $node.CoreServiceName -ComputerName $node.ServerName -ErrorAction stop
-	if($service.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Running){
-		Log-Info ([string]::Format("Starting core service '{0}' at {1}", $node.CoreServiceName, $node.ServerName))
-		$service.Start()
-		$serviceTimeoutTimeSpan = New-Object System.TimeSpan 0, 0, $serviceTimeoutSeconds
-		$service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Running, $serviceTimeoutTimeSpan)
-		$service.Refresh()
-		Log-Info ("The core service now is " + $service.Status)
+	try{
+		$tryTime = 1
+		while(($tryTime -le $maxRetryTimes) -and ($service.Status -ne $waitStatus)){
+			Log-Info ([string]::Format("Starting core service '{0}' at {1}", $node.CoreServiceName, $node.ServerName))
+			try{
+				if($startOrStop -eq "start"){
+					$service.Start()
+				}else{
+					$service.Stop()
+				}
+				$serviceTimeoutTimeSpan = New-Object System.TimeSpan 0, 0, $serviceTimeoutSeconds
+				$service.WaitForStatus($waitStatus, $serviceTimeoutTimeSpan)
+				$service.Refresh()
+			}catch{
+				if($tryTime -eq $maxRetryTimes) { throw }
+			}
+			Log-Info ("The core service now is " + $service.Status)
+			$tryTime++
+		}
+	}finally{
+		$service.Dispose()
 	}
 }
 
@@ -237,5 +257,6 @@ function Decrypt([string]$data){
 	[void]$tripleDes.Clear()
 	return [System.Text.Encoding]::UTF8.GetString($decryptedBytes)
 }
+
 
 Main
