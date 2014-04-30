@@ -1,4 +1,4 @@
-# CMP for MCC-91927. 
+# CMP for MCC-91927
 The job is to replace existing Medidata.Core.Objects.dll with new ones. The affected Rave versions and nodes are as below table.
 
 ## Affected Rave Versions
@@ -22,7 +22,9 @@ This script uses "Build Version" as identity to handle the patch process.
 6.    Try to start the core service of each sibling if it's an App server.
 7.    If any error happens between step 3~6, restore the dll from backup. Otherwise, insert one record into site's RavePatches table. The PatchNumber is constantly "MCC-91927".
 
-## How to use
+## Features
+
+### How to use
 
 ```
 PS ~> .\CMP-MCC91927.ps1 $WhoisDBServerName$ [$OpeCoreServiceTimeOutSeconds$] [$RetryCoreServiceTimes$]
@@ -34,13 +36,13 @@ PS ~> .\CMP-MCC91927.ps1 $WhoisDBServerName$ [$OpeCoreServiceTimeOutSeconds$] [$
 
 *Notice: You may consider to increase timeout and retry times to reduce core service operation failure.*
 
-## Patch site as a whole or do nothing
+### Patch site as a whole or do nothing
 The script ensures all sibling nodes of a single site are all patched or none. If error happens in the middle, the script will try to restore those have been patched from the backup (See "Log file and backup" below), so as to avoid discrepancy among these siblings.
 
-## Safe to re-run
+### Safe to re-run
 The script was designed to be rerunnable safely. It means it will detect if the patch has been finished on the target site. So the script will automatically skip those patched sites.
 
-## Log file and backups
+### Log file and backups
 Log file will be generated each time the script is run. A folder with name like "_$Timestamp$" (e.g. "_30Apr2014 18.26.56 407") will be created at the same directory of CMP-MCC91927.ps1. Within this folder, there will be a log file called "log.txt", whose contents are identical to the message on command prompt. 
 
 There also might be a "backup" folder where the patching target's original files will be backed up. The contents under "backup" folder can be used for manual restoring mispatched nodes. The backed-up files will not be handled by the script. You can choose to delete manually if succeeded. If no URL needs to be patched at all, this "backup" folder will not be created. 
