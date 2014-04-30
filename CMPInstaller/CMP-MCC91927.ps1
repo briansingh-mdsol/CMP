@@ -74,7 +74,7 @@ function Get-SiteInfoFromWhoIs($connectionString){
 		$connection.Open()
 		$cmd = $connection.CreateCommand()
 		$cmd.CommandType = [System.Data.CommandType]::StoredProcedure
-		$cmd.CommandText = "usp_GetActiveRaveConfigByVersion"
+		$cmd.CommandText = "usp_GetActiveRaveServerConfiguration"
 		$table = New-Object "System.Data.DataTable"
 		$table.Load($cmd.ExecuteReader())
 
@@ -126,9 +126,9 @@ function Patch-Site($site){
 		$needsPatch = (Check-IfNeedToPatch $site $connection)
 		if($needsPatch){
 			$site.Nodes | ForEach { Backup-Assembly $_ }
-			$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Stop-CoreService $_ }
+			$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "stop"}
 			$site.Nodes | ForEach { Replace-Assembly $_ }
-			$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Start-CoreService $_ }
+			$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "start"}
 			Insert-PatchInfo $site $connection 
 		}else{
 			Log-Info("This site has been patched.")
@@ -168,14 +168,6 @@ function Insert-PatchInfo($site, $connection){
 	[void]$cmd.ExecuteNonQuery()
 }
 
-function Stop-CoreService($node){
-	Ope-CoreService $node "stop"
-}
-
-function Start-CoreService($node){
-	Ope-CoreService $node "start"
-}
-
 function Ope-CoreService($node, [string]$startOrStop){
 	[System.ServiceProcess.ServiceControllerStatus]$waitStatus = [System.ServiceProcess.ServiceControllerStatus]::Stopped
 	if($startOrStop -eq "start"){
@@ -208,7 +200,7 @@ function Ope-CoreService($node, [string]$startOrStop){
 }
 
 function Backup-Assembly($node){
-	$backupPath = [System.IO.Path]::Combine($backupDir, $node.ServerName + "(" + $node.RaveVersion + ")", [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
+	$backupPath = [System.IO.Path]::Combine($backupDir, $node.ServerName + "(" + $node.RaveVersion + ")", $node.ServerName, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
 	ForceCopyFile $node.TargetAssemblyPath $backupPath "Backup"
 }
 
@@ -218,7 +210,7 @@ function Replace-Assembly($node){
 }
 
 function Restore-Assembly($node){
-	$backupPath = [System.IO.Path]::Combine($backupDir, $node.ServerName + "(" + $node.RaveVersion + ")", [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
+	$backupPath = [System.IO.Path]::Combine($backupDir, $node.ServerName + "(" + $node.RaveVersion + ")", $node.ServerName, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
 	if(Test-Path $backupPath){
 		ForceCopyFile $backupPath $node.TargetAssemblyPath "Rollback"
 	}
