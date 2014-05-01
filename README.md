@@ -41,6 +41,15 @@ PS ~> .\CMP-MCC106898.ps1 $WhoisDBServerName$ [$LogFolder$] [$OpeCoreServiceTime
 
 *Notice: You may consider to increase timeout and retry times to reduce core service operation failure.*
 
+### The sites.txt file
+User must list all target sites' URLs (not IP address) in this file. One site for each line. Any white line, empty line, or the line where the first non-empty charactor is "#" will be ignored. "#" character can be used as comment symbol.
+
+If no valid line in this file, or the file doesn't exist, the script will return without doing any patching. And the message will be like
+
+```
+> No site specified. Sites.txt doesn't exist or is empty.
+```
+
 ### Log file
 Log file will be generated under the specified log folder (by **$LogFolder$** parameter). Each execution creates a new log file. The file name is with time stamp and looks like "log_20140430 182656.407.txt". 
 

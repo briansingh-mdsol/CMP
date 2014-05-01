@@ -36,7 +36,7 @@ $whoisConnectionString = [string]::Format("Data Source={0};Initial Catalog=whois
 $workDir = Split-Path -parent $PSCommandPath
 $patchDir = [System.IO.Path]::Combine($workDir, "patches")
 $siteTxtPath = [System.IO.Path]::Combine($workDir, "sites.txt")
-$targetSites = Get-Content -Path $siteTxtPath | ?{(-not [string]::IsNullOrWhiteSpace($_))} | foreach {$_.ToLower()}
+$targetSites = Get-Content sites.txt | Foreach {$_.Trim().toLower()} | ? { $_.Length -gt 0 -and $_ -notmatch '^#'}
 $targetVersions = Get-ChildItem $patchDir | Foreach {$_.Name}
 $absoluteLogFolder = $logFolder
 if(-not [System.IO.Path]::IsPathRooted($absoluteLogFolder)){
@@ -63,7 +63,7 @@ function Main(){
 		$siblingCount += $site.Nodes.Count
 		Log-Info
 	}
-	Log-Info ([String]::Format("{0} URLs ({1} siblings) all finished. {2} patched, {3} failed. See log {4}", $sites.Length, $siblingCount, $okCount, $ngCount, $logPath))
+	Log-Info ([String]::Format("{0} URLs ({1} siblings) all finished. {2} patched, {3} failed.", $sites.Length, $siblingCount, $okCount, $ngCount))
 }
 
 function Get-SiteInfoFromWhoIs($connectionString){
