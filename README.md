@@ -30,8 +30,8 @@ PS ~> .\CMP-MCC91927.ps1 $WhoisDBServerName$ [$OpeCoreServiceTimeOutSeconds$] [$
 ```
 
 - **$WhoisDBServerName$** is the server name of WHOIS database and is required.
-- **$OpeCoreServiceTimeOutSeconds$** is the time out in seconds to wait for starting or stopping core service. This is optional and default value is 30 seconds.
-- **$RetryCoreServiceTimes$** is the retry times if starting or stopping core service failed. This is optional and default value is 3 times.
+- **$OpeCoreServiceTimeOutSeconds$** is the time out in seconds to wait for starting or stopping core service. This is optional and default value is 30.
+- **$RetryCoreServiceTimes$** is the retry times if starting or stopping core service failed. This is optional and default value is 3.
 
 *Notice: You may consider to increase timeout and retry times to reduce core service operation failure.*
 
@@ -51,10 +51,10 @@ See the following directory structure after running "CMP-MCC91927.ps1".
 ```
 │   CMP-MCC91927.ps1
 │
-├───_30Apr2014 19.03.12 488
+├───_20140430 195812.488
 │       log.txt
 │
-└───_30Apr2014 19.03.24 754
+└───_20140430 195824.754
     │   log.txt
     │
     └───backup
@@ -68,5 +68,10 @@ See the following directory structure after running "CMP-MCC91927.ps1".
             └───fakeWevServer02
                     Medidata.Core.Objects.dll
 ```
+### The record in RavePatches table
+The newly inserted record in RavePatches table is like below.
+|id|	RaveVersion	|PatchNumber	|version	|Description	|DateApplied	|AppliedBy	|AppliedFrom	|Active	|AppServers	|WebServers	|Viewers	|BatchUploader	|NonSqlRun|
+|---|	----------	|-----------	|-------	|------------	|------------	|-------	|-----------	|----	|--------	|-------	|-------	|-------	|-------|
+|91|	5.6.5.45	|MCC-91927	|1	|Replace Medidata.Core.Objects.dll	|2014-05-01 15:14:59.537|	|NULL|	NULL	|1	|NULL	|NULL|	NULL|	|NULL|	NULL|
 
 
