@@ -3,7 +3,7 @@ The job is to replace existing Medidata.Core.Objects.dll with new ones. The affe
 
 ## Affected Rave Versions
 |Product Name |Assembly Version |Product Version |Nodes|
-|---------------------------|--------------------|---------------------------|----------|
+|:---------------------------|:--------------------|:---------------------------|:----------|
 |Medidata Rave® 2013.2.0	|5.6.5.45 | 20140415223636-b6d4a73-u |Application nodes|
 |Medidata Rave® 2013.2.0.1	|5.6.5.50 | 20140425133920-42ad77c-u |Application nodes|
 |Medidata Rave® 2013.3.0	|5.6.5.66 | 20140425133901-edac9d8-u |Application nodes|
@@ -72,7 +72,7 @@ See the following directory structure after running "CMP-MCC91927.ps1".
 The newly inserted record in RavePatches table is like below.
 
 | id|	RaveVersion	|PatchNumber	|version	|Description	|DateApplied	|AppliedBy	|AppliedFrom	|Active	|AppServers	|WebServers	|Viewers	|BatchUploader	|NonSqlRun|
-|---|	----------	|-----------	|-------	|------------	|------------	|-------	|-----------	|----	|--------	|-------	|-------	|-------	|-------|
+|:---|:----------	|:-----------	|:-------	|:------------	|:------------	|-------	|-----------	|----	|--------	|-------	|-------	|-------	|-------|
 | 91|	5.6.5.45	|MCC-91927	|1	|Replace Medidata.Core.Objects.dll	|2014-05-01 15:14:59.537|NULL|	NULL	|1	|NULL	|NULL|	NULL|	NULL|	NULL|
 
 
