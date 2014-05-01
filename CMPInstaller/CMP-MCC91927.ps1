@@ -33,14 +33,16 @@ $whoisConnectionString = [string]::Format("Data Source={0};Initial Catalog=whois
 $workDir = Split-Path -parent $PSCommandPath
 $patchDir = [System.IO.Path]::Combine($workDir, "patches")
 $targetVersions = Get-ChildItem $patchDir | Foreach {$_.Name}
-$timestamp = [System.DateTime]::Now.ToString("_ddMMMyyyy HH.mm.ss fff")
-$backupDir = [System.IO.Path]::Combine($workDir, $timestamp, "backup")
+$timestampDir = [System.IO.Path]::Combine($workDir, [System.DateTime]::Now.ToString("_ddMMMyyyy HH.mm.ss fff"))
+New-Item -force -path $timestampDir -type folder | Out-Null
+
+# Prepare backup folder
+$backupDir = [System.IO.Path]::Combine($timestampDir, "backup")
+New-Item -force -path $backupDir -type folder | Out-Null
 
 # Prepare log.txt file
-$logPath = [System.IO.Path]::Combine($workDir, $timestamp, "log.txt")
-if(!(Test-Path $logPath)){
-    new-item -Path $logPath -ItemType file -Force | Out-Null
-}
+$logPath = [System.IO.Path]::Combine($timestampDir, "log.txt")
+New-Item -Path $logPath -ItemType file -Force | Out-Null
 
 function Main(){
 	Log-Info "Query WHOIS server to get the deployment information for all sites."
@@ -156,7 +158,7 @@ function Insert-PatchInfo($site, $connection){
 	[void]$cmd.Parameters.AddWithValue("@RaveVersion", $site.RaveVersion)
 	[void]$cmd.Parameters.AddWithValue("@PatchNumber", $site.PatchNumber)
 	[void]$cmd.Parameters.AddWithValue("@version", 1)
-	[void]$cmd.Parameters.AddWithValue("@Description", ($site.PatchNumber + " for MCC-91927"))
+	[void]$cmd.Parameters.AddWithValue("@Description", "Replace Medidata.Core.Objects.dll")
 	[void]$cmd.ExecuteNonQuery()
 }
 
@@ -193,13 +195,13 @@ function Ope-CoreService($node, [string]$startOrStop){
 
 function Patch-Assembly($node){
 	$patchFilePath = [System.IO.Path]::Combine($patchDir, $node.RaveVersion, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
-	$backupPath = [System.IO.Path]::Combine($backupDir, $node.ServerName + "(" + $node.RaveVersion + ")", $node.ServerName, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
+	$backupPath = [System.IO.Path]::Combine($backupDir, $node.Url + "(" + $node.RaveVersion + ")", $node.ServerName, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
 	ForceCopyFile $node.TargetAssemblyPath $backupPath "Backup"
 	ForceCopyFile $patchFilePath $node.TargetAssemblyPath "Patch"
 }
 
 function Restore-Assembly($node){
-	$backupPath = [System.IO.Path]::Combine($backupDir, $node.ServerName + "(" + $node.RaveVersion + ")", $node.ServerName, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
+	$backupPath = [System.IO.Path]::Combine($backupDir, $node.Url + "(" + $node.RaveVersion + ")", $node.ServerName, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
 	if(Test-Path $backupPath){
 		ForceCopyFile $backupPath $node.TargetAssemblyPath "Rollback"
 	}

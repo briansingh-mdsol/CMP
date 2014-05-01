@@ -9,6 +9,7 @@
     <AssemblyName>MyApplication</AssemblyName>
     <Name>CMP-MCC91927</Name>
     <ProjectHome />
+    <DebugArguments>localhost</DebugArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
