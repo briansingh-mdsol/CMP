@@ -3,12 +3,12 @@ The job is to replace existing Medidata.Core.Objects.dll with new ones. The affe
 
 ## Affected Rave Versions
 |Product Name |Assembly Version |Product Version |Nodes|
-|---------|-----------------------|---------------|--|
-|Medidata Rave® 2013.2.0	|5.6.5.45 |20140415223636-b6d4a73-u|Application nodes|
-|Medidata Rave® 2013.2.0.1	|5.6.5.50|20140425133920-42ad77c-u |Application nodes|
-|Medidata Rave® 2013.3.0	|5.6.5.66|20140425133901-edac9d8-u |Application nodes|
-|Medidata Rave® 2013.3.0.1	|5.6.5.71|20140425160927-940900d-u |Application nodes|
-|Medidata Rave® 2013.4.0	|5.6.5.92|20140425133800-285b96c-u |Application nodes and Web nodes|
+|---------------------------|--------------------|---------------------------|----------|
+|Medidata Rave® 2013.2.0	|5.6.5.45 | 20140415223636-b6d4a73-u |Application nodes|
+|Medidata Rave® 2013.2.0.1	|5.6.5.50 | 20140425133920-42ad77c-u |Application nodes|
+|Medidata Rave® 2013.3.0	|5.6.5.66 | 20140425133901-edac9d8-u |Application nodes|
+|Medidata Rave® 2013.3.0.1	|5.6.5.71 | 20140425160927-940900d-u |Application nodes|
+|Medidata Rave® 2013.4.0	|5.6.5.92 | 20140425133800-285b96c-u |Application nodes and Web nodes|
 
 This script uses "Build Version" as identity to handle the patch process.
 
