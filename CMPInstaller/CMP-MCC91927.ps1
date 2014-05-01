@@ -15,11 +15,14 @@ param(
 	# The server name of WHOIS database.
 	[Parameter(Mandatory=$true, Position=1)]
 	[string]$whoisServerName,
-	# Waiting timeout in seconds for stopping/starting core service. 
+	# Log output folder. Aboslute path or relative path.
 	[Parameter(Mandatory=$false, Position=2)]
+	[string]$logFolder = "logs",
+	# Waiting timeout in seconds for stopping/starting core service. 
+	[Parameter(Mandatory=$false, Position=3)]
 	[int]$serviceTimeoutSeconds = 30,
 	# How many times to retry stopping/starting core service.
-	[Parameter(Mandatory=$false, Position=3)]
+	[Parameter(Mandatory=$false, Position=4)]
 	[int]$maxRetryTimes = 3
 )
 
@@ -27,37 +30,40 @@ Add-Type -AssemblyName "System.ServiceProcess"
 Add-Type -AssemblyName "System.IO"
 Add-Type -AssemblyName "System.Transactions"
 
-$patchNumber = "MCC-91927"
+$patchNumber = "MCC-106898"
 $assemblyFileName = "Medidata.Core.Objects.dll"
 $whoisConnectionString = [string]::Format("Data Source={0};Initial Catalog=whois;Integrated Security=SSPI; Connection Timeout=600", $whoisServerName)
 $workDir = Split-Path -parent $PSCommandPath
 $patchDir = [System.IO.Path]::Combine($workDir, "patches")
+$siteTxtPath = [System.IO.Path]::Combine($workDir, "sites.txt")
+$targetSites = Get-Content -Path $siteTxtPath | ?{(-not [string]::IsNullOrWhiteSpace($_))} | foreach {$_.ToLower()}
 $targetVersions = Get-ChildItem $patchDir | Foreach {$_.Name}
-$timestampDir = [System.IO.Path]::Combine($workDir, [System.DateTime]::Now.ToString("_yyyyMMdd HHmmss.fff"))
-New-Item -force -path $timestampDir -type directory | Out-Null
-
-# Prepare backup folder
-$backupDir = [System.IO.Path]::Combine($timestampDir, "backup")
-New-Item -force -path $backupDir -type directory | Out-Null
-
-# Prepare log.txt file
-$logPath = [System.IO.Path]::Combine($timestampDir, "log.txt")
-New-Item -Path $logPath -ItemType file -Force | Out-Null
+$absoluteLogFolder = $logFolder
+if(-not [System.IO.Path]::IsPathRooted($absoluteLogFolder)){
+	$absoluteLogFolder = [System.IO.Path]::Combine($workDir, $logFolder)
+}
+New-Item -force -path $absoluteLogFolder -type directory | Out-Null
+$logPath = [System.IO.Path]::Combine($absoluteLogFolder, "log_" + [System.DateTime]::Now.ToString("yyyyMMdd HHmmss fff") + ".txt")
 
 function Main(){
+	if($targetSites.Count -eq 0) {
+		Log-Info "No site specified. Sites.txt doesn't exist or is empty."
+		Return
+	}
+
 	Log-Info "Query WHOIS server to get the deployment information for all sites."
-	$targetSites = Get-SiteInfoFromWhoIs $whoisConnectionString | where {$targetVersions -contains $_.RaveVersion}
-	Log-Info ([String]::Format("According to WHOIS, there are {0} URLs to handle in all.", $targetSites.Length))
+	$sites = Get-SiteInfoFromWhoIs $whoisConnectionString | where {$targetVersions -contains $_.RaveVersion} | where {$targetSites -contains $_.Url.ToLower()}
+	Log-Info ([String]::Format("According to WHOIS, there are {0} URLs to handle in all.", $sites.Length))
 	$index = 1; $okCount = 0; $ngCount = 0; $siblingCount = 0
-	ForEach($site in $targetSites) {
-		Log-Info ([String]::Format("[{0}/{1}] Working on {2} (v{3}) which has {4} siblings", @($index, $targetSites.Length, $site.Url, $site.RaveVersion, $site.Nodes.Count)))
+	ForEach($site in $sites) {
+		Log-Info ([String]::Format("[{0}/{1}] Working on {2} (v{3}) which has {4} siblings", @($index, $sites.Length, $site.Url, $site.RaveVersion, $site.Nodes.Count)))
 		$result = Patch-Site $site
 		$index++
 		if ($result){ $okCount++ } else { $ngCount++ }
 		$siblingCount += $site.Nodes.Count
 		Log-Info
 	}
-	Log-Info ([String]::Format("{0} URLs ({1} siblings) all finished. {2} patched, {3} failed. See log {4}", $targetSites.Length, $siblingCount, $okCount, $ngCount, $logPath))
+	Log-Info ([String]::Format("{0} URLs ({1} siblings) all finished. {2} patched, {3} failed. See log {4}", $sites.Length, $siblingCount, $okCount, $ngCount, $logPath))
 }
 
 function Get-SiteInfoFromWhoIs($connectionString){
@@ -195,13 +201,13 @@ function Ope-CoreService($node, [string]$startOrStop){
 
 function Patch-Assembly($node){
 	$patchFilePath = [System.IO.Path]::Combine($patchDir, $node.Site.RaveVersion, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
-	$backupPath = [System.IO.Path]::Combine($backupDir, $node.Site.Url + "(" + $node.Site.RaveVersion + ")", $node.ServerName, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
+	$backupPath = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($node.TargetAssemblyPath), $patchNumber, [System.IO.Path]::GetFileName($node.TargetAssemblyPath) + ".bak")
 	ForceCopyFile $node.TargetAssemblyPath $backupPath "Backup"
 	ForceCopyFile $patchFilePath $node.TargetAssemblyPath "Patch"
 }
 
 function Restore-Assembly($node){
-	$backupPath = [System.IO.Path]::Combine($backupDir, $node.Site.Url + "(" + $node.Site.RaveVersion + ")", $node.ServerName, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
+	$backupPath = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($node.TargetAssemblyPath), $patchNumber, [System.IO.Path]::GetFileName($node.TargetAssemblyPath) + ".bak")
 	if(Test-Path $backupPath){
 		ForceCopyFile $backupPath $node.TargetAssemblyPath "Rollback"
 	}
@@ -226,13 +232,11 @@ function Log-Info([string]$message){
 	}else{
 		write-host ("> " + $message)
 	}
-	([System.DateTime]::Now.ToString("dd/MMM/yyyy HH:mm:ss.fff") + " [Info] " + $message) | out-file -Filepath $logPath -append
 }
 
 function Log-Error($errorRecord){
 	$message = $errorRecord.ScriptStackTrace + "`r`n" + $errorRecord.Exception.ToString()
 	write-error $message
-	([System.DateTime]::Now.ToString("dd/MMM/yyyy HH:mm:ss.fff") + " [Error] " + $message) | out-file -Filepath $logPath -append
 }
 
 #
@@ -252,5 +256,9 @@ function Decrypt([string]$data){
 	return [System.Text.Encoding]::UTF8.GetString($decryptedBytes)
 }
 
-
-Main
+try{
+	Start-Transcript -Path $logPath -Force -Append 
+	Main
+} finally {
+	Stop-Transcript
+}
