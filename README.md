@@ -2,25 +2,24 @@
 The job is to replace existing Medidata.Core.Objects.dll with new ones. The affected Rave versions and nodes are as below table.
 
 ## Affected Rave Versions
-|Version |Build Version |Nodes|
-|---------|-----------------------|---------------|
-|2013.2.0|	5.6.5.45 |Application nodes|
-|2013.2.0.1	|5.6.5.50| Application nodes|
-|2013.3.0	|5.6.5.66| Application nodes|
-|2013.3.0.1	|5.6.5.71| Application nodes|
-|2013.4.0		|5.6.5.92| Application nodes and Web nodes|
+|Product Name |Assembly Version |Product Version |Nodes|
+|---------|-----------------------|---------------|--|
+|Medidata Rave® 2013.2.0	|5.6.5.45 |20140415223636-b6d4a73-u|Application nodes|
+|Medidata Rave® 2013.2.0.1	|5.6.5.50|20140425133920-42ad77c-u |Application nodes|
+|Medidata Rave® 2013.3.0	|5.6.5.66|20140425133901-edac9d8-u |Application nodes|
+|Medidata Rave® 2013.3.0.1	|5.6.5.71|20140425160927-940900d-u |Application nodes|
+|Medidata Rave® 2013.4.0	|5.6.5.92|20140425133800-285b96c-u |Application nodes and Web nodes|
 
 This script uses "Build Version" as identity to handle the patch process.
 
 ## Workflow of the script
 1. Connect WHOIS database to get deployment information for all sites (or say "URL" in Medidata language) and their sibling nodes.
 2. Filter out those sites need to be patched.
-2. Looply execute step 3~7 on each site
-3.    Backup original Medidata.Core.Objects.dll to the backup folder.
-4.    Try to stop the core service of each sibling if it's an App server.
-5.    Copy new dll file to replace those old ones on each sibling.
-6.    Try to start the core service of each sibling if it's an App server.
-7.    If any error happens between step 3~6, restore the dll from backup. Otherwise, insert one record into site's RavePatches table. The PatchNumber is constantly "MCC-91927".
+2. Looply execute step 3~6 on each site
+3.    Stop the core service of each sibling if it's an App server.
+4.    Backup the original Medidata.Core.Objects.dll and replace it with the new dll on each sibling.
+5.    Start the core service of each sibling if it's an App server.
+6.    If any error happens between step 3~5, restore the dll from backup. Otherwise, insert one record into site's RavePatches table. The PatchNumber is constantly "MCC-91927".
 
 ## How to use
 
