@@ -44,25 +44,18 @@ if(!(Test-Path $logPath)){
 
 function Main(){
 	Log-Info "Query WHOIS server to get the deployment information for all sites."
-	$whois = Get-SiteInfoFromWhoIs $whoisConnectionString | where {$targetVersions -contains $_.RaveVersion}
-	Log-Info ([String]::Format("According to WHOIS, there are {0} URLs to handle in all.", $whois.Length))
-	$index = 1
-	$okCount = 0
-	$ngCount = 0
-	$siblingCount = 0
-	ForEach($site in $whois) {
-		Log-Info ([String]::Format("[{0}/{1}] Working on {2} (v{3}) which has {4} siblings", @($index, $whois.Length, $site.Url, $site.RaveVersion, $site.Nodes.Count)))
+	$targetSites = Get-SiteInfoFromWhoIs $whoisConnectionString | where {$targetVersions -contains $_.RaveVersion}
+	Log-Info ([String]::Format("According to WHOIS, there are {0} URLs to handle in all.", $targetSites.Length))
+	$index = 1; $okCount = 0; $ngCount = 0; $siblingCount = 0
+	ForEach($site in $targetSites) {
+		Log-Info ([String]::Format("[{0}/{1}] Working on {2} (v{3}) which has {4} siblings", @($index, $targetSites.Length, $site.Url, $site.RaveVersion, $site.Nodes.Count)))
 		$result = Patch-Site $site
 		$index++
-		if($result){
-			$okCount++
-		}else{
-			$ngCount++
-		}
+		if ($result){ $okCount++ } else { $ngCount++ }
 		$siblingCount += $site.Nodes.Count
 		Log-Info
 	}
-	Log-Info ([String]::Format("{0} URLs ({1} siblings) all finished. {2} patched, {3} failed. See log {4}", $whois.Length, $siblingCount, $okCount, $ngCount, $logPath))
+	Log-Info ([String]::Format("{0} URLs ({1} siblings) all finished. {2} patched, {3} failed. See log {4}", $targetSites.Length, $siblingCount, $okCount, $ngCount, $logPath))
 }
 
 function Get-SiteInfoFromWhoIs($connectionString){
@@ -125,9 +118,8 @@ function Patch-Site($site){
 		$connection.Open()
 		$needsPatch = (Check-IfNeedToPatch $site $connection)
 		if($needsPatch){
-			$site.Nodes | ForEach { Backup-Assembly $_ }
 			$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "stop"}
-			$site.Nodes | ForEach { Replace-Assembly $_ }
+			$site.Nodes | ForEach { Patch-Assembly $_ }
 			$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "start"}
 			Insert-PatchInfo $site $connection 
 		}else{
@@ -199,13 +191,10 @@ function Ope-CoreService($node, [string]$startOrStop){
 	}
 }
 
-function Backup-Assembly($node){
+function Patch-Assembly($node){
+	$patchFilePath = [System.IO.Path]::Combine($patchDir, $node.RaveVersion, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
 	$backupPath = [System.IO.Path]::Combine($backupDir, $node.ServerName + "(" + $node.RaveVersion + ")", $node.ServerName, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
 	ForceCopyFile $node.TargetAssemblyPath $backupPath "Backup"
-}
-
-function Replace-Assembly($node){
-	$patchFilePath = [System.IO.Path]::Combine($patchDir, $node.RaveVersion, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
 	ForceCopyFile $patchFilePath $node.TargetAssemblyPath "Patch"
 }
 
