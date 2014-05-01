@@ -44,7 +44,7 @@ The script was designed to be rerunnable safely. It means it will detect if the 
 ### Log file and backups
 Log file will be generated each time the script is run. A folder with name like "_$Timestamp$" (e.g. "_30Apr2014 18.26.56 407") will be created at the same directory of CMP-MCC91927.ps1. Within this folder, there will be a log file called "log.txt", whose contents are identical to the message on command prompt. 
 
-There also might be a "backup" folder where the patching target's original files will be backed up. The contents under "backup" folder can be used for manual restoring mispatched nodes. The backed-up files will not be handled by the script. You can choose to delete manually if succeeded. If no URL needs to be patched at all, this "backup" folder will not be created. 
+There also will be a "backup" folder where the patching target's original files will be backed up. The contents under "backup" folder can be used for manual restoring mispatched nodes.
 
 See the following directory structure after running "CMP-MCC91927.ps1".
 
