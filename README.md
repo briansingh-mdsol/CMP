@@ -73,6 +73,6 @@ The newly inserted record in RavePatches table is like below.
 
 | id|	RaveVersion	|PatchNumber	|version	|Description	|DateApplied	|AppliedBy	|AppliedFrom	|Active	|AppServers	|WebServers	|Viewers	|BatchUploader	|NonSqlRun|
 |---|	----------	|-----------	|-------	|------------	|------------	|-------	|-----------	|----	|--------	|-------	|-------	|-------	|-------|
-| 91|	5.6.5.45	|MCC-91927	|1	|Replace Medidata.Core.Objects.dll	|2014-05-01 15:14:59.537|	|NULL|	NULL	|1	|NULL	|NULL|	NULL|	|NULL|	NULL|
+| 91|	5.6.5.45	|MCC-91927	|1	|Replace Medidata.Core.Objects.dll	|2014-05-01 15:14:59.537|NULL|	NULL	|1	|NULL	|NULL|	NULL|	NULL|	NULL|
 
 
