@@ -1,0 +1,11 @@
+### 
+# Empty or white lines will be ignored.
+#
+# A line if its first non-white (space nor tab) character is "#" will be treated as comment line.
+# Heading and tailing white characters of valid lines will be trimmed.
+#
+# The following three lines are examples as well as comment lines.
+    #    commenttest01.fake.mdsol.com
+#commenttest02.fake.mdsol.com
+#
+####
