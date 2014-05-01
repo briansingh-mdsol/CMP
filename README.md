@@ -54,11 +54,11 @@ PS ~> .\CMP-MCC106898.ps1 $WhoisDBServerName$ [$LogFolder$] [$OpeCoreServiceTime
 *Notice: You may consider to increase timeout and retry times to reduce core service operation failure.*
 
 
-## The log file
+### The log file
 Log file will be generated under the specified log folder (by **$LogFolder$** parameter). Each execution creates a new log file. The file name is with time stamp and looks like "log_20140430 182656.407.txt". 
 
 
-## The record in RavePatches table
+### The record in RavePatches table
 A new record like below will be inserted into the RavePatches table of each target site only if the patching on that site succeeded. The existence of this PatchNumber is used to detect whether this site has been patched already, so as to ensure this script's rerunnability.
 
 | id|	RaveVersion	|PatchNumber	|version	|Description	|DateApplied	|AppliedBy	|AppliedFrom	|Active	|AppServers	|WebServers	|Viewers	|BatchUploader	|NonSqlRun|
