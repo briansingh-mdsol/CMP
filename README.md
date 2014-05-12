@@ -9,17 +9,18 @@ The script is to replace existing Medidata.Core.Objects.dll with new ones. The a
 |Medidata Rave® 2013.3.0	|5.6.5.66 | 20140425133901-edac9d8 |Application nodes|
 |Medidata Rave® 2013.3.0.1	|5.6.5.71 | 20140425160927-940900d |Application nodes|
 |Medidata Rave® 2013.4.0	|5.6.5.92 | 20140425133800-285b96c |Application nodes and Web nodes|
+|Medidata Rave® 2013.4.0.1	|5.6.5.93 | 20140508213308-d2f1f2f |Application nodes and Web nodes|
 
 This script uses "Assembly Version (5.6.5.XX)" as identity to filter target sites.
 
 ## Workflow of the script
 1. Connect WHOIS database to get deployment information for all sites (or say "URL" in Medidata language) and their sibling nodes.
 2. Filter out those sites need to be patched.
-2. Loopily execute step 3~6 on each site
-3.    Stop the core service of each sibling if it's an App server.
-4.    Backup the original Medidata.Core.Objects.dll and replace it with the new dll on each sibling.
-5.    Start the core service of each sibling if it's an App server.
-6.    If any error happens between step 3~5, restore the dll from its backup. Otherwise, insert one record into site's RavePatches table. The PatchNumber is constantly "MCC-106898".
+3. Loopily execute step 4~6 on each site
+4.    Stop the core service of each sibling if it's an App server.
+5.    Backup the original Medidata.Core.Objects.dll and replace it with the new dll on each sibling.
+6.    Start the core service of each sibling if it's an App server.
+7.    If any error happens between step 4~6, restore the dll from its backup. Otherwise, insert one record into site's RavePatches table. The PatchNumber is constantly "MCC-106898".
 
 ## Features
 

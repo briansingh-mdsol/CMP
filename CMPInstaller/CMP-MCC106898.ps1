@@ -1,11 +1,6 @@
 ﻿#
 # This is CMP for MCC-91927 and its job is to replace existing Medidata.Core.Objects.dll with new ones.
-# The affected Rave versions and nodes are 
-#    - 2013.2.0		(5.6.5.45) Application nodes
-#    - 2013.2.0.1	(5.6.5.50) Application nodes
-#    - 2013.3.0		(5.6.5.66) Application nodes
-#    - 2013.3.0.1	(5.6.5.71) Application nodes
-#    - 2013.4.0		(5.6.5.92) Application nodes and Web nodes
+# The affected Rave versions and nodes are stated in README.md
 #
 # Notice: This script needs an associated stored procedure from WHOIS database, 
 #         which returns the deployment information for affected sites and nodes.
@@ -80,7 +75,7 @@ function Get-SiteInfoFromWhoIs($connectionString){
 		$table.Load($cmd.ExecuteReader())
 
 		$rows = $table | `
-				Where-Object {($_.RaveVersion -eq "5.6.5.92") -or (($_.RaveVersion -in @('5.6.5.45', '5.6.5.50', '5.6.5.66', '5.6.5.71')) -and ($_.Type -eq "App"))} | `
+				Where-Object {($_.RaveVersion -in @("5.6.5.92", "5.6.5.93")) -or (($_.RaveVersion -in @('5.6.5.45', '5.6.5.50', '5.6.5.66', '5.6.5.71')) -and ($_.Type -eq "App"))} | `
 				Select-object Url, RaveVersion, DbServer, DbName, Account, Password, Type, ServerName, ServiceName, ServerRootPath
 	} finally {
 		$connection.Dispose()
