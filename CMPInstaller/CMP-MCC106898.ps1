@@ -123,6 +123,7 @@ function Patch-Site($site){
 			$connection.Open()
 			$needsPatch = (Check-IfNeedToPatch $site $connection)
 			if($needsPatch){
+				$site.Nodes | ForEach { AssertVersionMatch $_ }
 				$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "stop"}
 				$site.Nodes | ForEach { Patch-Assembly $_ }
 				$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "start"}
@@ -195,6 +196,13 @@ function Ope-CoreService($node, [string]$startOrStop){
 		}
 	}finally{
 		$service.Dispose()
+	}
+}
+
+function AssertVersionMatch($node){
+	$fileVersion = (Get-Command $node.TargetAssemblyPath).FileVersionInfo.FileVersion
+	if($fileVersion -ne $node.Site.RaveVersion){
+		Throw "Assembly numbers don't match. Site version is '" + $node.Site.RaveVersion + "' but file version is '" + $fileVersion + "'"
 	}
 }
 
