@@ -209,6 +209,8 @@ function Patch-Assembly($node){
 			Break
 		}catch{
 			if($tryTime -eq $maxRetryTimes) { throw }
+			Log-Info "File is locked and cannot be copied. Wait for 15 senconds to retry"
+			Start-Sleep -s 15
 		}
 		$tryTime++
 	}
@@ -224,6 +226,8 @@ function Restore-Assembly($node){
 				Break
 			}catch{
 				if($tryTime -eq $maxRetryTimes) { throw }
+				Log-Info "File is locked and cannot be copied. Wait for 15 senconds to retry"
+				Start-Sleep -s 15
 			}
 			$tryTime++
 		}
