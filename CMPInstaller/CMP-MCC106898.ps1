@@ -114,28 +114,32 @@ function Get-SiteInfoFromWhoIs($connectionString){
 }
 
 function Patch-Site($site){
-	$connection = New-Object System.Data.SqlClient.SqlConnection $site.DbConnectionString
 	$scope = New-Object System.Transactions.TransactionScope
 
 	Try{
-		$connection.Open()
-		$needsPatch = (Check-IfNeedToPatch $site $connection)
-		if($needsPatch){
-			$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "stop"}
-			$site.Nodes | ForEach { Patch-Assembly $_ }
-			$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "start"}
-			Insert-PatchInfo $site $connection 
-		}else{
-			Log-Info("This site has been patched.")
-		}
+		$connection = New-Object System.Data.SqlClient.SqlConnection $site.DbConnectionString
 
-		$scope.Complete()
-		return $true
-	} catch {
-		$site.Nodes | ForEach { Restore-Assembly $_ }
-		Log-Error($_)
+		Try{
+			$connection.Open()
+			$needsPatch = (Check-IfNeedToPatch $site $connection)
+			if($needsPatch){
+				$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "stop"}
+				$site.Nodes | ForEach { Patch-Assembly $_ }
+				$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "start"}
+				Insert-PatchInfo $site $connection 
+			}else{
+				Log-Info("This site has been patched.")
+			}
+
+			$scope.Complete()
+			return $true
+		} catch {
+			$site.Nodes | ForEach { Restore-Assembly $_ }
+			Log-Error($_)
+		} finally {
+			$connection.Dispose()
+		}
 	} finally {
-		$connection.Dispose()
 		$scope.Dispose()
 	}
 
@@ -197,14 +201,32 @@ function Ope-CoreService($node, [string]$startOrStop){
 function Patch-Assembly($node){
 	$patchFilePath = [System.IO.Path]::Combine($patchDir, $node.Site.RaveVersion, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
 	$backupPath = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($node.TargetAssemblyPath), $patchNumber, [System.IO.Path]::GetFileName($node.TargetAssemblyPath) + ".bak")
-	ForceCopyFile $node.TargetAssemblyPath $backupPath "Backup"
-	ForceCopyFile $patchFilePath $node.TargetAssemblyPath "Patch"
+	$tryTime = 1
+	while($tryTime -le $maxRetryTimes){
+		try{
+			ForceCopyFile $node.TargetAssemblyPath $backupPath "Backup"
+			ForceCopyFile $patchFilePath $node.TargetAssemblyPath "Patch"
+			Break
+		}catch{
+			if($tryTime -eq $maxRetryTimes) { throw }
+		}
+		$tryTime++
+	}
 }
 
 function Restore-Assembly($node){
 	$backupPath = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($node.TargetAssemblyPath), $patchNumber, [System.IO.Path]::GetFileName($node.TargetAssemblyPath) + ".bak")
 	if(Test-Path $backupPath){
-		ForceCopyFile $backupPath $node.TargetAssemblyPath "Rollback"
+		$tryTime = 1
+		while($tryTime -le $maxRetryTimes){
+			try{
+				ForceCopyFile $backupPath $node.TargetAssemblyPath "Rollback"
+				Break
+			}catch{
+				if($tryTime -eq $maxRetryTimes) { throw }
+			}
+			$tryTime++
+		}
 	}
 }
 
