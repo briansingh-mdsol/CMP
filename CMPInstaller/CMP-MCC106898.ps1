@@ -65,7 +65,6 @@ function Get-SiteInfoFromWhoIs($connectionString){
 	$connection = New-Object System.Data.SqlClient.SqlConnection $connectionString
 	$rows = @()
 
-	# TODO: Awaiting Whois end development.
 	Try{
 		$connection.Open()
 		$cmd = $connection.CreateCommand()
