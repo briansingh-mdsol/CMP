@@ -27,7 +27,7 @@ This script uses "Assembly Version (5.6.5.XX)" as identity to filter target site
 - **Patch site as a whole or nothing.**
 The script ensures all sibling nodes of a single site are all patched or none. If error happens in the middle, the script will try to restore those have been patched from the backup (See "Log file and backup" below), so as to avoid discrepancy among these siblings.
 - **Safe to re-run.** The script was designed to be rerunnable safely. It means it will detect if the patch has been finished on the target site. So the script will automatically skip those patched sites.
-- **Read from sites.txt file to specify sites. ** User must list all target sites' URLs (not IP address) in this file. One site for each line. Any white line, empty line, or the line where the first non-empty charactor is "#" will be ignored. "#" character can be used as comment symbol. If no valid line in this file, or the file doesn't exist, the script will return without doing any patching. And the message will be like
+- **Read from sites.txt file to specify sites.** User must list all target sites' URLs (not IP address) in this file. One site for each line. Any white line, empty line, or the line where the first non-empty charactor is "#" will be ignored. "#" character can be used as comment symbol. If no valid line in this file, or the file doesn't exist, the script will return without doing any patching. And the message will be like
 ```
 > No site specified. Sites.txt doesn't exist or is empty.
 ```
