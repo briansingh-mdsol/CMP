@@ -10,14 +10,20 @@ param(
 	# The server name of WHOIS database.
 	[Parameter(Mandatory=$true, Position=1)]
 	[string]$whoisServerName,
-	# Log output folder. Aboslute path or relative path.
+	# WHOIS database User Name
 	[Parameter(Mandatory=$false, Position=2)]
+	[string]$whoisUser = "",
+	# WHOIS database User Password
+	[Parameter(Mandatory=$false, Position=3)]
+	[string]$whoisPwd = "",
+	# Log output folder. Aboslute path or relative path.
+	[Parameter(Mandatory=$false, Position=4)]
 	[string]$logFolder = "logs",
 	# Waiting timeout in seconds for stopping/starting core service. 
-	[Parameter(Mandatory=$false, Position=3)]
+	[Parameter(Mandatory=$false, Position=5)]
 	[int]$serviceTimeoutSeconds = 30,
 	# How many times to retry stopping/starting core service.
-	[Parameter(Mandatory=$false, Position=4)]
+	[Parameter(Mandatory=$false, Position=6)]
 	[int]$maxRetryTimes = 3
 )
 
@@ -25,9 +31,20 @@ Add-Type -AssemblyName "System.ServiceProcess"
 Add-Type -AssemblyName "System.IO"
 Add-Type -AssemblyName "System.Transactions"
 
+
+$minPowerShellVersion = 3
+
 $patchNumber = "MCC-106898"
 $assemblyFileName = "Medidata.Core.Objects.dll"
-$whoisConnectionString = [string]::Format("Data Source={0};Initial Catalog=whois;Integrated Security=SSPI; Connection Timeout=600", $whoisServerName)
+if([string]::IsNullOrEmpty($whoisUser) -or [string]::IsNullOrEmpty($whoisPwd))
+{    
+	$whoisConnectionString = [string]::Format("Data Source={0};Initial Catalog=whois;Integrated Security=SSPI; Connection Timeout=600", $whoisServerName)
+}
+else
+{
+	$whoisConnectionString = [string]::Format("Data Source={0};Initial Catalog=whois;;UserID={1}; Password={2}; Connection Timeout=600", $whoisServerName, $whoisUser, $whoisPwd)
+}
+
 $workDir = Split-Path -parent $PSCommandPath
 $patchDir = [System.IO.Path]::Combine($workDir, "patches")
 $siteTxtPath = [System.IO.Path]::Combine($workDir, "sites.txt")
@@ -41,6 +58,11 @@ New-Item -force -path $absoluteLogFolder -type directory | Out-Null
 $logPath = [System.IO.Path]::Combine($absoluteLogFolder, "log_" + [System.DateTime]::Now.ToString("yyyyMMdd HHmmss fff") + ".txt")
 
 function Main(){
+	if ($minPowerShellVersion -gt $host.version.major)  
+	{
+		Log-Info "Older version of PowerShell is detected. Require PowerShell 3 and above."
+		Return
+	}
 	if($targetSites.Count -eq 0) {
 		Log-Info "No site specified. Sites.txt doesn't exist or is empty."
 		Return
@@ -134,12 +156,15 @@ function Patch-Site($site){
 			$scope.Complete()
 			return $true
 		} catch {
-			$site.Nodes | ForEach { Restore-Assembly $_ }
 			Log-Error($_)
+			$site.Nodes | ForEach { Restore-Assembly $_ }			
 		} finally {
 			$connection.Dispose()
 		}
-	} finally {
+	} catch {
+		Log-Error ($_)
+	}
+	finally {
 		$scope.Dispose()
 	}
 
@@ -189,9 +214,9 @@ function Ope-CoreService($node, [string]$startOrStop){
 				$service.Refresh()
 			}catch{
 				if($tryTime -eq $maxRetryTimes) { throw }
+				$tryTime++
 			}
 			Log-Info ("The core service now is " + $service.Status)
-			$tryTime++
 		}
 	}finally{
 		$service.Dispose()
