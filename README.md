@@ -52,7 +52,7 @@ PS ~> .\CMP-MCC106898.ps1 $whoisServerName [$whoisUser] [$whoisPwd] [$logFolder]
 
 - **$whoisServerName** is the server name of WHOIS database and is required.
 - **$whoisUser** must be specified together with **$whoisPwd**. If specified, it will be used as the account for SQL authentication connection.
-- **$whoisPwd** must be specified together with **$whoisUser**. If specified, it will be used as the password for SQL authentication connection. *If either **$whoisUser** or **$whoisPwd** is empty, Windows authentication connection will be used.*
+- **$whoisPwd** must be specified together with **$whoisUser**. If specified, it will be used as the password for SQL authentication connection. If either **$whoisUser** or **$whoisPwd** is empty, Windows authentication connection will be used.
 - **$logFolder** is the directory for log file. This can be either absolute path or relative path. If it's a relative path, it will be under the script's directory. This is optional and default value is "Logs".
 - **$serviceTimeoutSeconds** is the time out in seconds to wait for starting or stopping core service. This is optional and default value is 30.
 - **$maxRetryTimes** is the retry times if starting or stopping core service failed. This is optional and default value is 3.
