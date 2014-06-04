@@ -13,6 +13,9 @@ The script is to replace existing Medidata.Core.Objects.dll with new ones. The a
 
 This script uses "Assembly Version (5.6.5.XX)" as identity to filter target sites.
 
+## Prerequisites
+Powershell 3.0 or above.
+
 ## Workflow of the script
 1. Connect WHOIS database to get deployment information for all sites (or say "URL" in Medidata language) and their sibling nodes.
 2. Filter out those sites need to be patched.
@@ -44,13 +47,15 @@ blah\
 
 ### Parameters
 ```
-PS ~> .\CMP-MCC106898.ps1 $WhoisDBServerName$ [$LogFolder$] [$OpeCoreServiceTimeOutSeconds$] [$RetryCoreServiceTimes$]
+PS ~> .\CMP-MCC106898.ps1 $whoisServerName [$whoisUser] [$whoisPwd] [$logFolder] [$serviceTimeoutSeconds] [$maxRetryTimes]
 ```
 
-- **$WhoisDBServerName$** is the server name of WHOIS database and is required.
-- **$LogFolder$** is the directory for log file. This can be either absolute path or relative path. If it's a relative path, it will be under the script's directory. This is optional and default value is "Logs".
-- **$OpeCoreServiceTimeOutSeconds$** is the time out in seconds to wait for starting or stopping core service. This is optional and default value is 30.
-- **$RetryCoreServiceTimes$** is the retry times if starting or stopping core service failed. This is optional and default value is 3.
+- **$whoisServerName** is the server name of WHOIS database and is required.
+- **$whoisUser** must be specified together with **$whoisPwd**. If specified, it will be used as the account for SQL authentication connection.
+- **$whoisPwd** must be specified together with **$whoisUser**. If specified, it will be used as the password for SQL authentication connection. *If either **$whoisUser** or **$whoisPwd** is empty, Windows authentication connection will be used.*
+- **$logFolder** is the directory for log file. This can be either absolute path or relative path. If it's a relative path, it will be under the script's directory. This is optional and default value is "Logs".
+- **$serviceTimeoutSeconds** is the time out in seconds to wait for starting or stopping core service. This is optional and default value is 30.
+- **$maxRetryTimes** is the retry times if starting or stopping core service failed. This is optional and default value is 3.
 
 *Notice: You may consider to increase timeout and retry times to reduce core service operation failure.*
 
