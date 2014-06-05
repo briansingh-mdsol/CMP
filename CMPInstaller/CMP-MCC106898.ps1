@@ -69,8 +69,12 @@ function Main(){
 		Log-Info "No site specified. Sites.txt doesn't exist or is empty."
 		Return
 	}
+
+	Print-Arguments
+	
 	if($repairDbTimestamp){
-		Log-Info "Notice: Script is to scan all sites and repair patch information in database if needed. No serivce nor assembly file will be manipulated."
+		Log-Info "! Notice: Script is to scan all sites and repair patch information in database if needed. No serivce nor assembly file will be manipulated."
+		Log-Info
 	}
 
 	Log-Info "Query WHOIS server to get the deployment information for all sites."
@@ -86,6 +90,18 @@ function Main(){
 		Log-Info
 	}
 	Log-Info ([String]::Format("{0} URLs ({1} siblings) all finished. {2} patched, {3} failed.", $sites.Length, $siblingCount, $okCount, $ngCount))
+}
+
+function Print-Arguments(){
+	Log-Info "Arguments"
+	Log-Info ("  -whoisServerName       : " + $whoisServerName)
+	Log-Info ("  -whoisUser             : " + $whoisUser)
+	Log-Info ("  -whoisPwd              : " + $whoisPwd)
+	Log-Info ("  -logFolder             : " + $logFolder)
+	Log-Info ("  -serviceTimeoutSeconds : " + $serviceTimeoutSeconds)
+	Log-Info ("  -maxRetryTimes         : " + $maxRetryTimes)
+	Log-Info ("  -repairDbTimestamp     : " + $repairDbTimestamp)
+	Log-Info
 }
 
 function Get-SiteInfoFromWhoIs($connectionString){
