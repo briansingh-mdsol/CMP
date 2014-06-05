@@ -24,13 +24,15 @@ param(
 	[int]$serviceTimeoutSeconds = 30,
 	# How many times to retry stopping/starting core service.
 	[Parameter(Mandatory=$false, Position=6)]
-	[int]$maxRetryTimes = 3
+	[int]$maxRetryTimes = 3,
+	# The timestamp used to repair database patch information.
+	[Parameter(Mandatory=$false, Position=7)]
+	[DateTime]$repairDbTimestamp
 )
 
 Add-Type -AssemblyName "System.ServiceProcess"
 Add-Type -AssemblyName "System.IO"
 Add-Type -AssemblyName "System.Transactions"
-
 
 $minPowerShellVersion = 3
 
@@ -66,6 +68,9 @@ function Main(){
 	if($targetSites.Count -eq 0) {
 		Log-Info "No site specified. Sites.txt doesn't exist or is empty."
 		Return
+	}
+	if($repairDbTimestamp){
+		Log-Info "Notice: Script is to scan all sites and repair patch information in database if needed. No serivce nor assembly file will be manipulated."
 	}
 
 	Log-Info "Query WHOIS server to get the deployment information for all sites."
@@ -144,11 +149,11 @@ function Patch-Site($site){
 			$connection.Open()
 			$needsPatch = (Check-IfNeedToPatch $site $connection)
 			if($needsPatch){
-				$site.Nodes | ForEach { AssertVersionMatch $_ }
-				$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "stop"}
-				$site.Nodes | ForEach { Patch-Assembly $_ }
-				$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "start"}
-				Insert-PatchInfo $site $connection 
+				if($repairDbTimestamp){
+					Repair-RavePatchesTable $site $connection
+				}else{
+					Patch-SiteReplaceAssembly $site $connection
+				}
 			}else{
 				Log-Info("This site has been patched.")
 			}
@@ -171,6 +176,34 @@ function Patch-Site($site){
 	return $false
 }
 
+function Patch-SiteReplaceAssembly($site, $connection){
+	$site.Nodes | ForEach { AssertVersionMatch $_ }
+	$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "stop"}
+	$site.Nodes | ForEach { Patch-Assembly $_ }
+	$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "start"}
+	Insert-PatchInfo $site $connection ([System.DateTime]::Now)
+}
+
+function Repair-RavePatchesTable($site, $connection){
+	$shouldRepair = $true
+	$lastWriteTime = [System.DateTime]::Now
+	$site.Nodes | ForEach {
+		$patchFilePath = [System.IO.Path]::Combine($patchDir, $site.RaveVersion, [System.IO.Path]::GetFileName($_.TargetAssemblyPath))
+		$patchProductVersion = (Get-Command $patchFilePath).FileVersionInfo.ProductVersion
+		$targerProductVersion = (Get-Command $_.TargetAssemblyPath).FileVersionInfo.ProductVersion
+		Log-Info ([string]::Format("The product version of '{0}' is '{1}'. The expected is '{2}'.", $_.TargetAssemblyPath, $targerProductVersion, $patchProductVersion))
+		$shouldRepair = $shouldRepair -and ($patchProductVersion -eq $targerProductVersion) 
+		$lastWriteTime = (Get-Item $_.TargetAssemblyPath).LastWriteTime
+	}
+	if($shouldRepair){
+		Log-Info "Repairing patch information."
+		Insert-PatchInfo $site $connection $repairDbTimestamp
+		Log-Info ("Repaired with timestampe '" + $repairDbTimestamp + "'")
+	}else{
+		Log-Info "Cannot repair RavePatches table. This site has node hasn't been patched."
+	}
+}
+
 function Check-IfNeedToPatch($site, $connection){
 	$cmd = $connection.CreateCommand();
 	$cmd.CommandType = [System.Data.CommandType]::Text
@@ -181,15 +214,17 @@ function Check-IfNeedToPatch($site, $connection){
 	return ($count -le 0)
 }
 
-function Insert-PatchInfo($site, $connection){
+function Insert-PatchInfo($site, $connection, [System.DateTime] $dataApplied){
 	$cmd = $connection.CreateCommand()
-	$cmd.CommandType = [System.Data.CommandType]::StoredProcedure
-	$cmd.CommandText = "dbo.spPatchesInsert"
+	$cmd.CommandType = [System.Data.CommandType]::Text
+	$cmd.CommandText = "INSERT INTO ravepatches([RaveVersion], [PatchNumber], [version], [Description], [DateApplied], [Active], [AppliedBy]) VALUES (@RaveVersion, @PatchNumber, @version, @Description, @dataApplied, 1, NULL)"
 	[void]$cmd.Parameters.AddWithValue("@RaveVersion", $site.RaveVersion)
 	[void]$cmd.Parameters.AddWithValue("@PatchNumber", $site.PatchNumber)
 	[void]$cmd.Parameters.AddWithValue("@version", 1)
+	[void]$cmd.Parameters.AddWithValue("@dataApplied", $dataApplied)
 	[void]$cmd.Parameters.AddWithValue("@Description", "Replace Medidata.Core.Objects.dll")
-	[void]$cmd.ExecuteNonQuery()
+	$count = $cmd.ExecuteScalar()
+	return ($count -le 0)
 }
 
 function Ope-CoreService($node, [string]$startOrStop){
