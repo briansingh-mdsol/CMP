@@ -44,7 +44,7 @@ if([string]::IsNullOrEmpty($whoisUser) -or [string]::IsNullOrEmpty($whoisPwd))
 }
 else
 {
-	$whoisConnectionString = [string]::Format("Data Source={0};Initial Catalog=whois;;UserID={1}; Password={2}; Connection Timeout=600", $whoisServerName, $whoisUser, $whoisPwd)
+	$whoisConnectionString = [string]::Format("Data Source={0};Initial Catalog=whois;uid={1};Password={2}; Connection Timeout=600", $whoisServerName, $whoisUser, $whoisPwd)
 }
 
 $workDir = Split-Path -parent $PSCommandPath
