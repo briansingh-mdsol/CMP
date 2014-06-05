@@ -96,7 +96,9 @@ function Print-Arguments(){
 	Log-Info "Arguments"
 	Log-Info ("  -whoisServerName       : " + $whoisServerName)
 	Log-Info ("  -whoisUser             : " + $whoisUser)
-	Log-Info ("  -whoisPwd              : " + $whoisPwd)
+	$pwdDisplay = $whoisPwd
+	if($whoisPwd) { $pwdDisplay = "********************" }
+	Log-Info ("  -whoisPwd              : " + $pwdDisplay)
 	Log-Info ("  -logFolder             : " + $logFolder)
 	Log-Info ("  -serviceTimeoutSeconds : " + $serviceTimeoutSeconds)
 	Log-Info ("  -maxRetryTimes         : " + $maxRetryTimes)
