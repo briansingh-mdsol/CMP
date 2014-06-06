@@ -163,12 +163,13 @@ function Get-SiteInfoFromWhoIs($connectionString){
 
 function Patch-Site($site){
 	$connection = New-Object System.Data.SqlClient.SqlConnection $site.DbConnectionString
-
+	$needRestore = $true
 	Try{
 		$connection.Open()
 		$needsPatch = (Check-IfNeedToPatch $site $connection)
 		if($needsPatch){
 			if($repairDbTimestamp){
+				$needRestore = $false
 				Repair-RavePatchesTable $site $connection
 			}else{
 				Patch-SiteReplaceAssembly $site $connection
@@ -180,7 +181,9 @@ function Patch-Site($site){
 		return $true
 	} catch {
 		Log-Error($_)
-		$site.Nodes | ForEach { Restore-Assembly $_ }			
+		if($needRestore){
+			$site.Nodes | ForEach { Restore-Assembly $_ }		
+		}	
 	} finally {
 		$connection.Dispose()
 	}
