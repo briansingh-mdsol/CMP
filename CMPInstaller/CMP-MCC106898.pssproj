@@ -30,6 +30,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="CMP-MCC106898.ps1" />
+    <Compile Include="PatchUrls-SqlConn.bat" />
+    <Compile Include="PatchUrls-WinConn.bat" />
+    <Compile Include="RepairDb-SqlConn.bat" />
+    <Compile Include="RepairDb-WinConn.bat" />
     <Compile Include="sites.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
