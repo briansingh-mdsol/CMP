@@ -42,20 +42,27 @@ blah\
 └───MCC-106898
         Medidata.Core.Objects.dll.bak   <-- The original one
 ```
+- **Repair mode.** In some cases the record in RavePatches, which labels this CMP has been executed successfully against the underlying site, is missing. To repair this record, this script can be run in "repair mode" which will only compare file's produce version, detect if the record is missing, and insert one. To run repair mode, start the script with **-repairDbTimestamp** argument. See below for the detail.
 
 ## How to use
 
-### Parameters
+### Arguments
+To run *"__patch mode__"*, which will stop/start core service and replace files.
 ```
 PS ~> .\CMP-MCC106898.ps1 $whoisServerName [$whoisUser] [$whoisPwd] [$logFolder] [$serviceTimeoutSeconds] [$maxRetryTimes]
 ```
+or to run *"__repair mode__"*, which only sees assembly 'product version' and conditionally insert a record into RavePatches table for the underlying site. 
+```
+PS ~> .\CMP-MCC106898.ps1 $whoisServerName [$whoisUser] [$whoisPwd] [$logFolder] -repairDbTimestamp 'MM/DD/YYYY HH:mm:ss'
+```
 
-- **$whoisServerName** is the server name of WHOIS database and is required.
-- **$whoisUser** must be specified together with **$whoisPwd**. If specified, it will be used as the account for SQL authentication connection.
-- **$whoisPwd** must be specified together with **$whoisUser**. If specified, it will be used as the password for SQL authentication connection. If either **$whoisUser** or **$whoisPwd** is empty, Windows authentication connection will be used.
-- **$logFolder** is the directory for log file. This can be either absolute path or relative path. If it's a relative path, it will be under the script's directory. This is optional and default value is "Logs".
-- **$serviceTimeoutSeconds** is the time out in seconds to wait for starting or stopping core service. This is optional and default value is 30.
-- **$maxRetryTimes** is the retry times if starting or stopping core service failed. This is optional and default value is 3.
+- **-whoisServerName** is the server name of WHOIS database and is required.
+- **-whoisUser** must be specified together with **$whoisPwd**. If specified, it will be used as the account for SQL authentication connection.
+- **-whoisPwd** must be specified together with **$whoisUser**. If specified, it will be used as the password for SQL authentication connection. If either **$whoisUser** or **$whoisPwd** is empty, Windows authentication connection will be used.
+- **-logFolder** is the directory for log file. This can be either absolute path or relative path. If it's a relative path, it will be under the script's directory. This is optional and default value is "Logs".
+- **-serviceTimeoutSeconds** is the time out in seconds to wait for starting or stopping core service. This is optional and default value is 30.
+- **-maxRetryTimes** is the retry times if starting or stopping core service failed. This is optional and default value is 3.
+- **-repairDbTimestamp** is the timestamp used for repairing patch information in database. This timestamp will be inserted into RavePatches table. The format is 'MM/DD/YYYY HH:mm:ss' or 'MM/DD/YYYY'. This argument surpresses **-serviceTimeoutSeconds** and **-maxRetryTimes**. As if this argument specified the script will be run in "repair mode" where no core service nor assembly file will be manipulated. It only compares assembly's 'product version' and conditionally inserts the missing patch record into RavePatches table of the site.
 
 *Notice: You may consider to increase timeout and retry times to reduce core service operation failure.*
 
