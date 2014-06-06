@@ -16,14 +16,24 @@ This script uses "Assembly Version (5.6.5.XX)" as identity to filter target site
 ## Prerequisites
 Powershell 3.0 or above.
 
-## Workflow of the script
+## Workflow of the script (patch mode)
 1. Connect WHOIS database to get deployment information for all sites (or say "URL" in Medidata language) and their sibling nodes.
 2. Filter out those sites need to be patched.
-3. Loopily execute step 4~6 on each site
+3. Loopily execute step 4~6 on each site.
 4.    Stop the core service of each sibling if it's an App server.
 5.    Backup the original Medidata.Core.Objects.dll and replace it with the new dll on each sibling.
 6.    Start the core service of each sibling if it's an App server.
 7.    If any error happens between step 4~6, restore the dll from its backup. Otherwise, insert one record into site's RavePatches table. The PatchNumber is constantly "MCC-106898".
+
+## Workflow of the script (repair mode)
+1. Connect WHOIS database to get deployment information for all sites and their sibling nodes.
+2. Filter out those sites need to be patched.
+3. Loopily execute step 4~6 on each site.
+4.    Get the product version of Medidata.Core.Objects.dll on each sibling.
+5.    See if all siblings' file product versions are equal to the patch assembly's product version. If true go to step 6, otherwise 7.
+6.    Insert a record in RavePatches table (the DateApplied column will be set with the value specified by **-repairDbTimestamp** argument) and goto step 3.
+7.    Log that this site hasn't been patches and goto step 3.
+
 
 ## Features
 
