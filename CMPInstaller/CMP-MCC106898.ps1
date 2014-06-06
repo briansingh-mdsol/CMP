@@ -83,7 +83,11 @@ function Main(){
 	$index = 1; $okCount = 0; $ngCount = 0; $siblingCount = 0
 	ForEach($site in $sites) {
 		Log-Info ([String]::Format("[{0}/{1}] Working on {2} (v{3}) which has {4} siblings", @($index, $sites.Length, $site.Url, $site.RaveVersion, $site.Nodes.Count)))
-		$result = Patch-Site $site
+		try{
+			$result = Patch-Site $site
+		}catch{
+			Log-Error $_
+		}
 		$index++
 		if ($result){ $okCount++ } else { $ngCount++ }
 		$siblingCount += $site.Nodes.Count
@@ -158,37 +162,27 @@ function Get-SiteInfoFromWhoIs($connectionString){
 }
 
 function Patch-Site($site){
-	$scope = New-Object System.Transactions.TransactionScope
+	$connection = New-Object System.Data.SqlClient.SqlConnection $site.DbConnectionString
 
 	Try{
-		$connection = New-Object System.Data.SqlClient.SqlConnection $site.DbConnectionString
-
-		Try{
-			$connection.Open()
-			$needsPatch = (Check-IfNeedToPatch $site $connection)
-			if($needsPatch){
-				if($repairDbTimestamp){
-					Repair-RavePatchesTable $site $connection
-				}else{
-					Patch-SiteReplaceAssembly $site $connection
-				}
+		$connection.Open()
+		$needsPatch = (Check-IfNeedToPatch $site $connection)
+		if($needsPatch){
+			if($repairDbTimestamp){
+				Repair-RavePatchesTable $site $connection
 			}else{
-				Log-Info("This site has been patched.")
+				Patch-SiteReplaceAssembly $site $connection
 			}
-
-			$scope.Complete()
-			return $true
-		} catch {
-			Log-Error($_)
-			$site.Nodes | ForEach { Restore-Assembly $_ }			
-		} finally {
-			$connection.Dispose()
+		}else{
+			Log-Info("This site has been patched.")
 		}
+
+		return $true
 	} catch {
-		Log-Error ($_)
-	}
-	finally {
-		$scope.Dispose()
+		Log-Error($_)
+		$site.Nodes | ForEach { Restore-Assembly $_ }			
+	} finally {
+		$connection.Dispose()
 	}
 
 	return $false
@@ -235,14 +229,14 @@ function Check-IfNeedToPatch($site, $connection){
 function Insert-PatchInfo($site, $connection, [System.DateTime] $dataApplied){
 	$cmd = $connection.CreateCommand()
 	$cmd.CommandType = [System.Data.CommandType]::Text
-	$cmd.CommandText = "INSERT INTO ravepatches([RaveVersion], [PatchNumber], [version], [Description], [DateApplied], [Active], [AppliedBy]) VALUES (@RaveVersion, @PatchNumber, @version, @Description, @dataApplied, 1, NULL)"
+	$cmd.CommandText = "INSERT INTO RavePatches([RaveVersion], [PatchNumber], [version], [Description], [DateApplied], [Active], [AppliedBy]) VALUES (@RaveVersion, @PatchNumber, @version, @Description, @dataApplied, 1, NULL)"
 	[void]$cmd.Parameters.AddWithValue("@RaveVersion", $site.RaveVersion)
 	[void]$cmd.Parameters.AddWithValue("@PatchNumber", $site.PatchNumber)
 	[void]$cmd.Parameters.AddWithValue("@version", 1)
 	[void]$cmd.Parameters.AddWithValue("@dataApplied", $dataApplied)
 	[void]$cmd.Parameters.AddWithValue("@Description", "Replace Medidata.Core.Objects.dll")
-	$count = $cmd.ExecuteScalar()
-	return ($count -le 0)
+	$count = $cmd.ExecuteNonQuery()
+	return ($count -eq 1)
 }
 
 function Ope-CoreService($node, [string]$startOrStop){
