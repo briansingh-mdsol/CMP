@@ -24,10 +24,7 @@ param(
 	[int]$serviceTimeoutSeconds = 30,
 	# How many times to retry stopping/starting core service.
 	[Parameter(Mandatory=$false, Position=6)]
-	[int]$maxRetryTimes = 3,
-	# The timestamp used to repair database patch information.
-	[Parameter(Mandatory=$false, Position=7)]
-	[DateTime]$repairDbTimestamp
+	[int]$maxRetryTimes = 3
 )
 
 Add-Type -AssemblyName "System.ServiceProcess"
@@ -48,10 +45,8 @@ else
 }
 
 $workDir = Split-Path -parent $PSCommandPath
-$patchDir = [System.IO.Path]::Combine($workDir, "patches")
 $siteTxtPath = [System.IO.Path]::Combine($workDir, "sites.txt")
 $targetSites = Get-Content sites.txt | Foreach {$_.Trim().toLower()} | ? { $_.Length -gt 0 -and $_ -notmatch '^#'}
-$targetVersions = Get-ChildItem $patchDir | Foreach {$_.Name}
 $absoluteLogFolder = $logFolder
 if(-not [System.IO.Path]::IsPathRooted($absoluteLogFolder)){
 	$absoluteLogFolder = [System.IO.Path]::Combine($workDir, $logFolder)
@@ -71,14 +66,9 @@ function Main(){
 	}
 
 	Print-Arguments
-	
-	if($repairDbTimestamp){
-		Log-Info "! Notice: Script is to scan all sites and repair patch information in database if needed. No serivce nor assembly file will be manipulated."
-		Log-Info
-	}
 
 	Log-Info "Query WHOIS server to get the deployment information for all sites."
-	$sites = Get-SiteInfoFromWhoIs $whoisConnectionString | where {$targetVersions -contains $_.RaveVersion} | where {$targetSites -contains $_.Url.ToLower()}
+	$sites = Get-SiteInfoFromWhoIs $whoisConnectionString | where {$targetSites -contains $_.Url.ToLower()}
 	Log-Info ([String]::Format("According to WHOIS, there are {0} URLs to handle in all.", $sites.Length))
 	$index = 1; $okCount = 0; $ngCount = 0; $siblingCount = 0
 	ForEach($site in $sites) {
@@ -106,7 +96,6 @@ function Print-Arguments(){
 	Log-Info ("  -logFolder             : " + $logFolder)
 	Log-Info ("  -serviceTimeoutSeconds : " + $serviceTimeoutSeconds)
 	Log-Info ("  -maxRetryTimes         : " + $maxRetryTimes)
-	Log-Info ("  -repairDbTimestamp     : " + $repairDbTimestamp)
 	Log-Info
 }
 
@@ -123,7 +112,7 @@ function Get-SiteInfoFromWhoIs($connectionString){
 		$table.Load($cmd.ExecuteReader())
 
 		$rows = $table | `
-				Where-Object {($_.RaveVersion -in @("5.6.5.92", "5.6.5.93")) -or (($_.RaveVersion -in @('5.6.5.45', '5.6.5.50', '5.6.5.66', '5.6.5.71')) -and ($_.Type -eq "App"))} | `
+				Where-Object { $_.RaveVersion -in @("5.6.5.144")} | `
 				Select-object Url, RaveVersion, DbServer, DbName, Account, Password, Type, ServerName, ServiceName, ServerRootPath
 	} finally {
 		$connection.Dispose()
@@ -146,10 +135,11 @@ function Get-SiteInfoFromWhoIs($connectionString){
 
 		$node = @{ Type=$row.Type; ServerName = $row.ServerName; Site=$currentSite }
 		if($node.Type -eq "App"){
-			$node.TargetAssemblyPath = [System.IO.Path]::Combine($row.ServerRootPath, $assemblyFileName)
 			$node.CoreServiceName = [string]::Format("Medidata Core Service - ""{0}""", $row.ServiceName)
+			$node.IntegrationServiceName = [string]::Format("Medidata Rave Integration Service - ""{0}""", $row.ServiceName)
 		}else{
-			$node.TargetAssemblyPath = [System.IO.Path]::Combine($row.ServerRootPath, "bin", $assemblyFileName)
+			$node.RwsWebConfigPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($row.ServerRootPath, "..\Medidata.RaveWebServices\App\Medidata.RaveWebServices.Web\appsettings.config"))
+			$node.AppSettingsPath = [System.IO.Path]::Combine($row.ServerRootPath, "appsettings.config")
 		}
 		$currentSite.Nodes += $node
 	}
@@ -163,17 +153,11 @@ function Get-SiteInfoFromWhoIs($connectionString){
 
 function Patch-Site($site){
 	$connection = New-Object System.Data.SqlClient.SqlConnection $site.DbConnectionString
-	$needRestore = $true
 	Try{
 		$connection.Open()
 		$needsPatch = (Check-IfNeedToPatch $site $connection)
 		if($needsPatch){
-			if($repairDbTimestamp){
-				$needRestore = $false
-				Repair-RavePatchesTable $site $connection
-			}else{
-				Patch-SiteReplaceAssembly $site $connection
-			}
+			Patch-SingleSite $site $connection
 		}else{
 			Log-Info("This site has been patched.")
 		}
@@ -181,9 +165,6 @@ function Patch-Site($site){
 		return $true
 	} catch {
 		Log-Error($_)
-		if($needRestore){
-			$site.Nodes | ForEach { Restore-Assembly $_ }		
-		}	
 	} finally {
 		$connection.Dispose()
 	}
@@ -191,32 +172,13 @@ function Patch-Site($site){
 	return $false
 }
 
-function Patch-SiteReplaceAssembly($site, $connection){
-	$site.Nodes | ForEach { AssertVersionMatch $_ }
-	$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "stop"}
-	$site.Nodes | ForEach { Patch-Assembly $_ }
-	$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Ope-CoreService $_ "start"}
-	Insert-PatchInfo $site $connection ([System.DateTime]::Now)
-}
+function Patch-SingleSite($site, $connection){
+	Patch-Database $site $connection
+	$site.Nodes | Where-Object { $_.Type -eq "Web" } | ForEach { ModifyConfigFiles $_ }
 
-function Repair-RavePatchesTable($site, $connection){
-	$shouldRepair = $true
-	$lastWriteTime = [System.DateTime]::Now
-	$site.Nodes | ForEach {
-		$patchFilePath = [System.IO.Path]::Combine($patchDir, $site.RaveVersion, [System.IO.Path]::GetFileName($_.TargetAssemblyPath))
-		$patchProductVersion = (Get-Command $patchFilePath).FileVersionInfo.ProductVersion
-		$targerProductVersion = (Get-Command $_.TargetAssemblyPath).FileVersionInfo.ProductVersion
-		Log-Info ([string]::Format("The product version of '{0}' is '{1}'. The expected is '{2}'.", $_.TargetAssemblyPath, $targerProductVersion, $patchProductVersion))
-		$shouldRepair = $shouldRepair -and ($patchProductVersion -eq $targerProductVersion) 
-		$lastWriteTime = (Get-Item $_.TargetAssemblyPath).LastWriteTime
-	}
-	if($shouldRepair){
-		Log-Info "Repairing patch information."
-		Insert-PatchInfo $site $connection $repairDbTimestamp
-		Log-Info ("Repaired with timestampe '" + $repairDbTimestamp + "'")
-	}else{
-		Log-Info "Cannot repair RavePatches table. This site has node hasn't been patched."
-	}
+	$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Restart-Services $_ }
+	$site.Nodes | Where-Object { $_.Type -eq "Web" } | ForEach { Restart-IIS $_ }
+	Insert-PatchInfo $site $connection ([System.DateTime]::Now)
 }
 
 function Check-IfNeedToPatch($site, $connection){
@@ -242,13 +204,45 @@ function Insert-PatchInfo($site, $connection, [System.DateTime] $dataApplied){
 	return ($count -eq 1)
 }
 
-function Ope-CoreService($node, [string]$startOrStop){
+function Patch-Database($site, $connection){
+	# Execute SQL to patch database
+	#### TODO
+}
+
+function ModifyConfigFiles($node){
+	# Full path of Medidata.RaveWebServices.Web/web.config
+	$node.RwsWebConfigPath
+
+	# Full path of MedidataRave/appsettings.config
+	$node.AppSettingsPath
+
+	#### TODO
+}
+
+function Restart-Services($node){
+	# Restart core service
+	$coreService = get-Service $node.CoreServiceName -ComputerName $node.ServerName -ErrorAction stop
+	Ope-CoreService $node $coreService "stop"
+	Ope-CoreService $node $coreService "start"
+
+	# Restart integration service
+	$integrationService = get-Service $node.IntegrationServiceName -ComputerName $node.ServerName -ErrorAction stop
+	Ope-CoreService $node $integrationService "stop"
+	Ope-CoreService $node $integrationService "start"
+}
+
+function Restart-IIS($node){
+	$iis = get-Service "W3SVC" -ComputerName $node.ServerName -ErrorAction stop
+	Ope-CoreService $node $iis "stop"
+	Ope-CoreService $node $iis "start"
+}
+
+function Ope-CoreService($node, $service, [string]$startOrStop){
 	[System.ServiceProcess.ServiceControllerStatus]$waitStatus = [System.ServiceProcess.ServiceControllerStatus]::Stopped
 	if($startOrStop -eq "start"){
 		$waitStatus = [System.ServiceProcess.ServiceControllerStatus]::Running
 	}
-
-	$service = get-Service $node.CoreServiceName -ComputerName $node.ServerName -ErrorAction stop
+	
 	try{
 		$tryTime = 1
 		while(($tryTime -le $maxRetryTimes) -and ($service.Status -ne $waitStatus)){
@@ -270,49 +264,6 @@ function Ope-CoreService($node, [string]$startOrStop){
 		}
 	}finally{
 		$service.Dispose()
-	}
-}
-
-function AssertVersionMatch($node){
-	$fileVersion = (Get-Command $node.TargetAssemblyPath).FileVersionInfo.FileVersion
-	if($fileVersion -ne $node.Site.RaveVersion){
-		Throw "Assembly numbers don't match. Site version is '" + $node.Site.RaveVersion + "' but file version is '" + $fileVersion + "'"
-	}
-}
-
-function Patch-Assembly($node){
-	$patchFilePath = [System.IO.Path]::Combine($patchDir, $node.Site.RaveVersion, [System.IO.Path]::GetFileName($node.TargetAssemblyPath))
-	$backupPath = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($node.TargetAssemblyPath), $patchNumber, [System.IO.Path]::GetFileName($node.TargetAssemblyPath) + ".bak")
-	$tryTime = 1
-	while($tryTime -le $maxRetryTimes){
-		try{
-			ForceCopyFile $node.TargetAssemblyPath $backupPath "Backup"
-			ForceCopyFile $patchFilePath $node.TargetAssemblyPath "Patch"
-			Break
-		}catch{
-			if($tryTime -eq $maxRetryTimes) { throw }
-			Log-Info "File is locked and cannot be copied. Wait for 15 senconds to retry"
-			Start-Sleep -s 15
-		}
-		$tryTime++
-	}
-}
-
-function Restore-Assembly($node){
-	$backupPath = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($node.TargetAssemblyPath), $patchNumber, [System.IO.Path]::GetFileName($node.TargetAssemblyPath) + ".bak")
-	if(Test-Path $backupPath){
-		$tryTime = 1
-		while($tryTime -le $maxRetryTimes){
-			try{
-				ForceCopyFile $backupPath $node.TargetAssemblyPath "Rollback"
-				Break
-			}catch{
-				if($tryTime -eq $maxRetryTimes) { throw }
-				Log-Info "File is locked and cannot be copied. Wait for 15 senconds to retry"
-				Start-Sleep -s 15
-			}
-			$tryTime++
-		}
 	}
 }
 

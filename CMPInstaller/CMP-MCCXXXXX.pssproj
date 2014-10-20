@@ -7,7 +7,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>MyApplication</RootNamespace>
     <AssemblyName>MyApplication</AssemblyName>
-    <Name>CMP-MCC91927</Name>
+    <Name>CMP-MCCXXXXX</Name>
     <ProjectHome />
     <DebugArguments>localhost</DebugArguments>
   </PropertyGroup>
@@ -29,12 +29,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="CMP-MCC106898.ps1" />
-    <Compile Include="PatchUrls-SqlConn.bat" />
-    <Compile Include="PatchUrls-WinConn.bat" />
-    <Compile Include="RepairDb-SqlConn.bat" />
-    <Compile Include="RepairDb-WinConn.bat" />
     <Compile Include="sites.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="CMP-MCCXXXXX.ps1" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <Target Name="Build" />
