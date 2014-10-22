@@ -32,7 +32,7 @@ Add-Type -AssemblyName "System.IO"
 Add-Type -AssemblyName "System.Transactions"
 
 $minPowerShellVersion = 3
-$patchNumber = "MCC-XXXXX" # TODO get correct patch number 
+$patchNumber = "MCC-12345" # TODO get correct patch number 
 $patchDescription = "Fix iMedidata Duplicate Apps Issue Caused By Original Rave 2014.2.0 installation" # TODO get correct description 
 
 if([string]::IsNullOrEmpty($whoisUser) -or [string]::IsNullOrEmpty($whoisPwd))
@@ -122,7 +122,7 @@ function Merge-SiteInfo($targetSites, $whoisSites)
 			Add-Member -InputObject $obj -MemberType NoteProperty -Name PatchNumber -Value $whoisInfo.PatchNumber
 
 			#Add target site information to merge object
-			Add-Member -InputObject $obj -MemberType NoteProperty -Name WorkRequestNumber -Value $targetInfo["workRequestNumber"].Value
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name WorkRequestNumber -Value $patchNumber.TrimStart("MCC-")
 			Add-Member -InputObject $obj -MemberType NoteProperty -Name AppIdOriginalRaveEdc -Value $targetInfo["appIdOriginalRaveEdc"].Value
 			Add-Member -InputObject $obj -MemberType NoteProperty -Name AppTokenOriginalRaveEdc -Value $targetInfo["appTokenOriginalRaveEdc"].Value
 			Add-Member -InputObject $obj -MemberType NoteProperty -Name UuidOriginalRaveEdc -Value $targetInfo["uuidOriginalRaveEdc"].Value
