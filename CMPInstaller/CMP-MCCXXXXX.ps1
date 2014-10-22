@@ -132,6 +132,10 @@ function Merge-SiteInfo($targetSites, $whoisSites)
 
 			$sites += $obj
 		}
+        else
+        {
+            Log-Info("No WHOIS entry found for target site : " + $targetInfo["site"].Value)
+        }
 	}
 	return $sites
 }
