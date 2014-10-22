@@ -50,6 +50,7 @@ function GetTargetSites($workDir)
 	Get-ChildItem $workDir -Filter *.json | 
 		Foreach-Object{
 			$json = (Get-Content $_.FullName -Raw) | ConvertFrom-Json
+			Add-Member -InputObject $json -MemberType NoteProperty -Name site -Value $_.BaseName
 			$targetSites += $json
 		}
 	return $targetSites		
@@ -147,17 +148,17 @@ function FindWhoisSite($whoisSites, $search)
 
 function Print-Arguments(){
 	Log-Info "Arguments"
-	Log-Info ("  -whoisServerName	   : " + $whoisServerName)
-	Log-Info ("  -whoisUser			 : " + $whoisUser)
+	Log-Info ("  -whoisServerName		: " + $whoisServerName)
+	Log-Info ("  -whoisUser				: " + $whoisUser)
 	$pwdDisplay = $whoisPwd
 	if($whoisPwd) { $pwdDisplay = "********************" }
-	Log-Info ("  -whoisPwd			  : " + $pwdDisplay)
-	Log-Info ("  -logFolder			 : " + $logFolder)
-	Log-Info ("  -serviceTimeoutSeconds : " + $serviceTimeoutSeconds)
-	Log-Info ("  -maxRetryTimes		 : " + $maxRetryTimes)
+	Log-Info ("  -whoisPwd				: " + $pwdDisplay)
+	Log-Info ("  -logFolder				: " + $logFolder)
+	Log-Info ("  -serviceTimeoutSeconds	: " + $serviceTimeoutSeconds)
+	Log-Info ("  -maxRetryTimes			: " + $maxRetryTimes)
 	Log-Info
-	Log-Info ("  -patchNumber		   : " + $patchNumber)
-	Log-Info ("  -patchDescription	  : " + $patchDescription)
+	Log-Info ("  -patchNumber			: " + $patchNumber)
+	Log-Info ("  -patchDescription		: " + $patchDescription)
 	Log-Info
 }
 
