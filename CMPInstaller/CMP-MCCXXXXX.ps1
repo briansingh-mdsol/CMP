@@ -236,8 +236,8 @@ function Patch-Site($site){
 }
 
 function Patch-SingleSite($site, $connection){
+    $site.Nodes | Where-Object { $_.Type -eq "Web" } | ForEach { ModifyConfigFiles $_ $site }
 	Patch-Database $site $connection
-	$site.Nodes | Where-Object { $_.Type -eq "Web" } | ForEach { ModifyConfigFiles $_ $site }
 	$site.Nodes | Where-Object { $_.Type -eq "App" } | ForEach { Restart-Services $_ }
 	$site.Nodes | Where-Object { $_.Type -eq "Web" } | ForEach { Restart-IIS $_ }
 	Insert-PatchInfo $site $connection ([System.DateTime]::Now)
@@ -323,34 +323,48 @@ function RunSqlText($connection, $sqlText)
 }
 
 function ModifyConfigFiles($node, $site){
-	#Check for Medidata.RaveWebServices.Web/web.config
-	if(-NOT (Test-Path $node.RwsWebConfigPath))
-	{
-		Log-Info ("Could not access file: " + $node.RwsWebConfigPath)
-		return
-	}
 
-	#Check for MedidataRave/appsettings.config
-	$node.AppSettingsPath
-	if(-NOT (Test-Path $node.AppSettingsPath))
-	{
-		Log-Info ("Could not access file: " + $node.AppSettingsPath)
-		return
-	}
+    VerifyConfigFile $node.RwsWebConfigPath
+    VerifyConfigFile $node.AppSettingsPath
 
 	#Update Medidata.RaveWebServices.Web/web.config
-	CreateConfigFileBackup $node.RwsWebConfigPath
-	UpdateRaveWebServicesWebConfig $node.RwsWebConfigPath $site.AppIdOriginalRaveEdc $site.AppTokenOriginalRaveEdc $site.AppIdOriginalRaveModules $site.AppTokenOriginalRaveModules
+	$rwsWebConfigBackupFilePath = CreateConfigFileBackup $node.RwsWebConfigPath
+    try {
+	    UpdateRaveWebServicesWebConfig $node.RwsWebConfigPath $site.AppIdOriginalRaveEdc $site.AppTokenOriginalRaveEdc $site.AppIdOriginalRaveModules $site.AppTokenOriginalRaveModules
+    } catch {
+        RecoverConfigFileFromBackup $rwsWebConfigBackupFilePath $node.RwsWebConfigPath
+        throw "Unable to update file: " + $node.RwsWebConfigPath
+    }
 
 	#Update MedidataRave/appsettings.config
-	CreateConfigFileBackup $node.AppSettingsPath
-	UpdateMedidataRaveAppsettingsConfig $node.AppSettingsPath $site.AppIdOriginalRaveEdc $site.AppTokenOriginalRaveEdc $site.AppIdOriginalRaveModules $site.AppTokenOriginalRaveModules
+	$appSettingsBackupFilePath = CreateConfigFileBackup $node.AppSettingsPath
+    try {
+	    UpdateMedidataRaveAppsettingsConfig $node.AppSettingsPath $site.AppIdOriginalRaveEdc $site.AppTokenOriginalRaveEdc $site.AppIdOriginalRaveModules $site.AppTokenOriginalRaveModules
+    } catch {
+        RecoverConfigFileFromBackup $appSettingsBackupFilePath $node.AppSettingsPath
+        throw "Unable to update file: " + $node.AppSettingsPath
+    }
 }
 
-function CreateConfigFileBackup($sourceFilePath)
+function VerifyConfigFile($configFilePath)
 {
-	$backupFilePath = $sourceFilePath + ".BACKUP.$([datetime]::now.ToString('yyyy-MM-dd_HH-mm-ss'))"
-	Copy-Item $sourceFilePath $backupFilePath -Force
+	if(-NOT (Test-Path $configFilePath))
+	{
+		throw "Could not access file: " + $configFilePath
+	}
+}
+
+function CreateConfigFileBackup($configFilePath)
+{
+	$backupFilePath = $configFilePath + ".BACKUP.$([datetime]::now.ToString('yyyy-MM-dd_HH-mm-ss'))"
+	Copy-Item $configFilePath $backupFilePath -Force
+    return $backupFilePath
+}
+
+function RecoverConfigFileFromBackup($backupFilePath, $configFilePath)
+{
+    Log-Info("RecoverConfigFileFromBackup : " + $configFilePath)
+    Copy-Item $backupFilePath $configFilePath -Force
 }
 
 function UpdateRaveWebServicesWebConfig($rwsWebConfigFilePath, $appIdOriginalRaveEdc, $appTokenOriginalRaveEdc, $appIdOriginalRaveModules, $appTokenOriginalRaveModules)
