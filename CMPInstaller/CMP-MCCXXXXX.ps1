@@ -3,7 +3,7 @@
 # The affected Rave versions and nodes are stated in README.md
 #
 # Notice: This script needs an associated stored procedure from WHOIS database, 
-#         which returns the deployment information for affected sites and nodes.
+#		 which returns the deployment information for affected sites and nodes.
 #
 
 param(
@@ -36,7 +36,7 @@ $patchNumber = "MCC-XXXXX" # TODO get correct patch number
 $patchDescription = "Fix iMedidata Duplicate Apps Issue Caused By Original Rave 2014.2.0 installation" # TODO get correct description 
 
 if([string]::IsNullOrEmpty($whoisUser) -or [string]::IsNullOrEmpty($whoisPwd))
-{    
+{	
 	$whoisConnectionString = [string]::Format("Data Source={0};Initial Catalog=whois;Integrated Security=SSPI; Connection Timeout=600", $whoisServerName)
 }
 else
@@ -46,13 +46,13 @@ else
 
 function GetTargetSites($workDir)
 {
-    $targetSites = @()
-    Get-ChildItem $workDir -Filter *.json | 
-        Foreach-Object{
-            $json = (Get-Content $_.FullName -Raw) | ConvertFrom-Json
-            $targetSites += $json
-        }
-    return $targetSites        
+	$targetSites = @()
+	Get-ChildItem $workDir -Filter *.json | 
+		Foreach-Object{
+			$json = (Get-Content $_.FullName -Raw) | ConvertFrom-Json
+			$targetSites += $json
+		}
+	return $targetSites		
 }
 
 $scriptDir = Split-Path -parent $PSCommandPath
@@ -82,7 +82,7 @@ function Main(){
 
 	$whoisSites = Get-SiteInfoFromWhoIs $whoisConnectionString
 
-    $sites = [array] (Merge-SiteInfo $targetSites $whoisSites)
+	$sites = [array] (Merge-SiteInfo $targetSites $whoisSites)
 
 	Log-Info ([String]::Format("According to WHOIS, there are {0} URLs to handle in all.", $sites.Length))
 
@@ -104,61 +104,61 @@ function Main(){
 
 function Merge-SiteInfo($targetSites, $whoisSites)
 {
-    $sites = @()
-    foreach ($target in $targetSites) {
-        $targetInfo = $target.psobject.Properties    
-        $whoisInfo = FindWhoisSite $whoisSites $targetInfo["site"].Value
-        if (-NOT ($whoisInfo -eq $null))
-        {
-            #Create merge object
-            $obj = New-Object PSObject
+	$sites = @()
+	foreach ($target in $targetSites) {
+		$targetInfo = $target.psobject.Properties	
+		$whoisInfo = FindWhoisSite $whoisSites $targetInfo["site"].Value
+		if (-NOT ($whoisInfo -eq $null))
+		{
+			#Create merge object
+			$obj = New-Object PSObject
 
-            #Add whois site information to merge object
-            Add-Member -InputObject $obj -MemberType NoteProperty -Name Url -Value $whoisInfo.Url
-            Add-Member -InputObject $obj -MemberType NoteProperty -Name RaveVersion -Value $whoisInfo.RaveVersion
-            Add-Member -InputObject $obj -MemberType NoteProperty -Name Nodes -Value $whoisInfo.Nodes
-            Add-Member -InputObject $obj -MemberType NoteProperty -Name DbConnectionString -Value $whoisInfo.DbConnectionString
-            Add-Member -InputObject $obj -MemberType NoteProperty -Name PatchNumber -Value $whoisInfo.PatchNumber
+			#Add whois site information to merge object
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name Url -Value $whoisInfo.Url
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name RaveVersion -Value $whoisInfo.RaveVersion
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name Nodes -Value $whoisInfo.Nodes
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name DbConnectionString -Value $whoisInfo.DbConnectionString
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name PatchNumber -Value $whoisInfo.PatchNumber
 
-            #Add target site information to merge object
-            Add-Member -InputObject $obj -MemberType NoteProperty -Name WorkRequestNumber -Value $targetInfo["workRequestNumber"].Value
-            Add-Member -InputObject $obj -MemberType NoteProperty -Name AppIdOriginalRaveEdc -Value $targetInfo["appIdOriginalRaveEdc"].Value
-            Add-Member -InputObject $obj -MemberType NoteProperty -Name AppTokenOriginalRaveEdc -Value $targetInfo["appTokenOriginalRaveEdc"].Value
-            Add-Member -InputObject $obj -MemberType NoteProperty -Name UuidOriginalRaveEdc -Value $targetInfo["uuidOriginalRaveEdc"].Value
-            Add-Member -InputObject $obj -MemberType NoteProperty -Name AppIdOriginalRaveModules -Value $targetInfo["appIdOriginalRaveModules"].Value
-            Add-Member -InputObject $obj -MemberType NoteProperty -Name AppTokenOriginalRaveModules -Value $targetInfo["appTokenOriginalRaveModules"].Value
-            Add-Member -InputObject $obj -MemberType NoteProperty -Name UuidOriginalRaveModule -Value $targetInfo["uuidOriginalRaveModule"].Value
+			#Add target site information to merge object
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name WorkRequestNumber -Value $targetInfo["workRequestNumber"].Value
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name AppIdOriginalRaveEdc -Value $targetInfo["appIdOriginalRaveEdc"].Value
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name AppTokenOriginalRaveEdc -Value $targetInfo["appTokenOriginalRaveEdc"].Value
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name UuidOriginalRaveEdc -Value $targetInfo["uuidOriginalRaveEdc"].Value
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name AppIdOriginalRaveModules -Value $targetInfo["appIdOriginalRaveModules"].Value
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name AppTokenOriginalRaveModules -Value $targetInfo["appTokenOriginalRaveModules"].Value
+			Add-Member -InputObject $obj -MemberType NoteProperty -Name UuidOriginalRaveModule -Value $targetInfo["uuidOriginalRaveModule"].Value
 
-            $sites += $obj
-        }
-    }
-    return $sites
+			$sites += $obj
+		}
+	}
+	return $sites
 }
 
 function FindWhoisSite($whoisSites, $search)
 {
-    foreach ($site in $whoisSites) {
-        if($site.Url -contains $search)
-        {
-            return $site
-        }
-    }
+	foreach ($site in $whoisSites) {
+		if($site.Url -contains $search)
+		{
+			return $site
+		}
+	}
 }
 
 function Print-Arguments(){
 	Log-Info "Arguments"
-	Log-Info ("  -whoisServerName       : " + $whoisServerName)
-	Log-Info ("  -whoisUser             : " + $whoisUser)
+	Log-Info ("  -whoisServerName	   : " + $whoisServerName)
+	Log-Info ("  -whoisUser			 : " + $whoisUser)
 	$pwdDisplay = $whoisPwd
 	if($whoisPwd) { $pwdDisplay = "********************" }
-	Log-Info ("  -whoisPwd              : " + $pwdDisplay)
-	Log-Info ("  -logFolder             : " + $logFolder)
+	Log-Info ("  -whoisPwd			  : " + $pwdDisplay)
+	Log-Info ("  -logFolder			 : " + $logFolder)
 	Log-Info ("  -serviceTimeoutSeconds : " + $serviceTimeoutSeconds)
-	Log-Info ("  -maxRetryTimes         : " + $maxRetryTimes)
+	Log-Info ("  -maxRetryTimes		 : " + $maxRetryTimes)
 	Log-Info
-    Log-Info ("  -patchNumber           : " + $patchNumber)
-    Log-Info ("  -patchDescription      : " + $patchDescription)
-    Log-Info
+	Log-Info ("  -patchNumber		   : " + $patchNumber)
+	Log-Info ("  -patchDescription	  : " + $patchDescription)
+	Log-Info
 }
 
 function Get-SiteInfoFromWhoIs($connectionString){
@@ -268,108 +268,108 @@ function Insert-PatchInfo($site, $connection, [System.DateTime] $dataApplied){
 function Patch-Database($site, $connection){
 	# Execute SQL to patch database
 
-    # Fix Riss
-    $FixRissUuidBackupTableName = 'BK_WR_' + $site.WorkRequestNumber + '_RISS_IntegratedApplicationsConfigurations'
-    $FixRissUuidCreateBackupTable = 'CREATE TABLE ' + $FixRissUuidBackupTableName + ' (ID INT, UUID UNIQUEIDENTIFIER, MessageQueueUrl NVARCHAR(512), Updated DATETIME, BK_Timestamp DATETIME)' 
-    $FixRissUuidUpdateRissTable = 'DECLARE @dt DATETIME = GETUTCDATE() UPDATE RISS_IntegratedApplicationsConfigurations SET UUID = LOWER(''' + $site.UuidOriginalRaveEdc + '''), MessageQueueUrl = NULL, Updated = @dt OUTPUT deleted.ID, deleted.UUID, deleted.MessageQueueURL, deleted.Updated, @dt INTO ' + $FixRissUuidBackupTableName
-    $FixRissUuidGetResults = 'SELECT bk.ID AS ID, bk.UUID AS OldUUID, riac.UUID AS NewUUID, bk.MessageQueueURL AS OldURL, riac.MessageQueueURL AS NewURL, bk.Updated AS OldUpdated, riac.Updated AS NewUpdated, bk.BK_Timestamp AS ScriptTimestamp FROM ' + $FixRissUuidBackupTableName + ' bk JOIN RISS_IntegratedApplicationsConfigurations riac ON bk.ID = riac.ID'
+	# Fix Riss
+	$FixRissUuidBackupTableName = 'BK_WR_' + $site.WorkRequestNumber + '_RISS_IntegratedApplicationsConfigurations'
+	$FixRissUuidCreateBackupTable = 'CREATE TABLE ' + $FixRissUuidBackupTableName + ' (ID INT, UUID UNIQUEIDENTIFIER, MessageQueueUrl NVARCHAR(512), Updated DATETIME, BK_Timestamp DATETIME)' 
+	$FixRissUuidUpdateRissTable = 'DECLARE @dt DATETIME = GETUTCDATE() UPDATE RISS_IntegratedApplicationsConfigurations SET UUID = LOWER(''' + $site.UuidOriginalRaveEdc + '''), MessageQueueUrl = NULL, Updated = @dt OUTPUT deleted.ID, deleted.UUID, deleted.MessageQueueURL, deleted.Updated, @dt INTO ' + $FixRissUuidBackupTableName
+	$FixRissUuidGetResults = 'SELECT bk.ID AS ID, bk.UUID AS OldUUID, riac.UUID AS NewUUID, bk.MessageQueueURL AS OldURL, riac.MessageQueueURL AS NewURL, bk.Updated AS OldUpdated, riac.Updated AS NewUpdated, bk.BK_Timestamp AS ScriptTimestamp FROM ' + $FixRissUuidBackupTableName + ' bk JOIN RISS_IntegratedApplicationsConfigurations riac ON bk.ID = riac.ID'
 
-    $sqlText = ""
-    $sqlText = $sqlText + $FixRissUuidCreateBackupTable
-    $sqlText = $sqlText + " "
-    $sqlText = $sqlText + $FixRissUuidUpdateRissTable
-    $sqlText = $sqlText + " "
-    $sqlText = $sqlText + $FixRissUuidGetResults
-    $sqlText = $sqlText + " "
+	$sqlText = ""
+	$sqlText = $sqlText + $FixRissUuidCreateBackupTable
+	$sqlText = $sqlText + " "
+	$sqlText = $sqlText + $FixRissUuidUpdateRissTable
+	$sqlText = $sqlText + " "
+	$sqlText = $sqlText + $FixRissUuidGetResults
+	$sqlText = $sqlText + " "
 
-    RunSqlText $connection $sqlText
+	RunSqlText $connection $sqlText
 
-    # Fix Api Id
-    $FixApiIdBackupTableName = 'BK_WR_' + $site.WorkRequestNumber + '_Configuration'
-    $FixApiIdCreateBackupTable = 'CREATE TABLE ' + $FixApiIdBackupTableName + ' (Tag VARCHAR(64), ConfigValue VARCHAR(2000), Updated DATETIME, BK_Timestamp DATETIME)'
-    $FixApiIdCreateTempTable = 'DECLARE @ConfigTemp TABLE (Tag NVARCHAR(400), ConfigValue NVARCHAR(50)) INSERT INTO @ConfigTemp VALUES (''ApiID'', ''' + $site.AppIdOriginalRaveEdc + '''), (''iMedidataApiRaveToken'', ''' + $site.AppTokenOriginalRaveEdc + '''), (''iMedidataEdcAppID'', ''' + $site.UuidOriginalRaveEdc + '''), (''iMedidataModulesAppID'', ''' + $site.UuidOriginalRaveModule + ''')'
-    $FixApiIdUpdateConfigurationTable = 'DECLARE @dt DATETIME = GETUTCDATE() UPDATE c SET ConfigValue = t.ConfigValue, Updated = @dt OUTPUT deleted.Tag, deleted.ConfigValue, deleted.Updated, @dt INTO ' + $FixApiIdBackupTableName + ' FROM Configuration c JOIN @ConfigTemp t ON t.Tag = c.Tag WHERE t.ConfigValue <> c.ConfigValue'
-    $FixApiIdGetResults = 'SELECT * FROM ' + $FixApiIdBackupTableName
+	# Fix Api Id
+	$FixApiIdBackupTableName = 'BK_WR_' + $site.WorkRequestNumber + '_Configuration'
+	$FixApiIdCreateBackupTable = 'CREATE TABLE ' + $FixApiIdBackupTableName + ' (Tag VARCHAR(64), ConfigValue VARCHAR(2000), Updated DATETIME, BK_Timestamp DATETIME)'
+	$FixApiIdCreateTempTable = 'DECLARE @ConfigTemp TABLE (Tag NVARCHAR(400), ConfigValue NVARCHAR(50)) INSERT INTO @ConfigTemp VALUES (''ApiID'', ''' + $site.AppIdOriginalRaveEdc + '''), (''iMedidataApiRaveToken'', ''' + $site.AppTokenOriginalRaveEdc + '''), (''iMedidataEdcAppID'', ''' + $site.UuidOriginalRaveEdc + '''), (''iMedidataModulesAppID'', ''' + $site.UuidOriginalRaveModule + ''')'
+	$FixApiIdUpdateConfigurationTable = 'DECLARE @dt DATETIME = GETUTCDATE() UPDATE c SET ConfigValue = t.ConfigValue, Updated = @dt OUTPUT deleted.Tag, deleted.ConfigValue, deleted.Updated, @dt INTO ' + $FixApiIdBackupTableName + ' FROM Configuration c JOIN @ConfigTemp t ON t.Tag = c.Tag WHERE t.ConfigValue <> c.ConfigValue'
+	$FixApiIdGetResults = 'SELECT * FROM ' + $FixApiIdBackupTableName
 
-    $sqlText = ""
-    $sqlText = $sqlText + $FixApiIdCreateBackupTable
-    $sqlText = $sqlText + " "
-    $sqlText = $sqlText + $FixApiIdCreateTempTable
-    $sqlText = $sqlText + " "
-    $sqlText = $sqlText + $FixApiIdUpdateConfigurationTable
-    $sqlText = $sqlText + " "
-    $sqlText = $sqlText + $FixApiIdGetResults
-    $sqlText = $sqlText + " "
+	$sqlText = ""
+	$sqlText = $sqlText + $FixApiIdCreateBackupTable
+	$sqlText = $sqlText + " "
+	$sqlText = $sqlText + $FixApiIdCreateTempTable
+	$sqlText = $sqlText + " "
+	$sqlText = $sqlText + $FixApiIdUpdateConfigurationTable
+	$sqlText = $sqlText + " "
+	$sqlText = $sqlText + $FixApiIdGetResults
+	$sqlText = $sqlText + " "
 
-    RunSqlText $connection $sqlText
+	RunSqlText $connection $sqlText
 }
 
 function RunSqlText($connection, $sqlText)
 {
-    $cmd = new-object System.Data.SqlClient.SqlCommand($sqlText, $connection);
-    $reader = $cmd.ExecuteReader()
+	$cmd = new-object System.Data.SqlClient.SqlCommand($sqlText, $connection);
+	$reader = $cmd.ExecuteReader()
 
-    $results = @()
-    while ($reader.Read())
-    {
-        $row = @{}
-        for ($i = 0; $i -lt $reader.FieldCount; $i++)
-        {
-            $row[$reader.GetName($i)] = $reader.GetValue($i)
-        }
-        $results += new-object psobject -property $row            
-    }
+	$results = @()
+	while ($reader.Read())
+	{
+		$row = @{}
+		for ($i = 0; $i -lt $reader.FieldCount; $i++)
+		{
+			$row[$reader.GetName($i)] = $reader.GetValue($i)
+		}
+		$results += new-object psobject -property $row			
+	}
 }
 
 function ModifyConfigFiles($node, $site){
 	#Check for Medidata.RaveWebServices.Web/web.config
-    if(-NOT (Test-Path $node.RwsWebConfigPath))
-    {
-        Log-Info ("Could not access file: " + $node.RwsWebConfigPath)
-        return
-    }
+	if(-NOT (Test-Path $node.RwsWebConfigPath))
+	{
+		Log-Info ("Could not access file: " + $node.RwsWebConfigPath)
+		return
+	}
 
 	#Check for MedidataRave/appsettings.config
 	$node.AppSettingsPath
-    if(-NOT (Test-Path $node.AppSettingsPath))
-    {
-        Log-Info ("Could not access file: " + $node.AppSettingsPath)
-        return
-    }
+	if(-NOT (Test-Path $node.AppSettingsPath))
+	{
+		Log-Info ("Could not access file: " + $node.AppSettingsPath)
+		return
+	}
 
-    #Update Medidata.RaveWebServices.Web/web.config
-    CreateConfigFileBackup $node.RwsWebConfigPath
-    UpdateRaveWebServicesWebConfig $node.RwsWebConfigPath $site.AppIdOriginalRaveEdc $site.AppTokenOriginalRaveEdc $site.AppIdOriginalRaveModules $site.AppTokenOriginalRaveModules
+	#Update Medidata.RaveWebServices.Web/web.config
+	CreateConfigFileBackup $node.RwsWebConfigPath
+	UpdateRaveWebServicesWebConfig $node.RwsWebConfigPath $site.AppIdOriginalRaveEdc $site.AppTokenOriginalRaveEdc $site.AppIdOriginalRaveModules $site.AppTokenOriginalRaveModules
 
-    #Update MedidataRave/appsettings.config
-    CreateConfigFileBackup $node.AppSettingsPath
-    UpdateMedidataRaveAppsettingsConfig $node.AppSettingsPath $site.AppIdOriginalRaveEdc $site.AppTokenOriginalRaveEdc $site.AppIdOriginalRaveModules $site.AppTokenOriginalRaveModules
+	#Update MedidataRave/appsettings.config
+	CreateConfigFileBackup $node.AppSettingsPath
+	UpdateMedidataRaveAppsettingsConfig $node.AppSettingsPath $site.AppIdOriginalRaveEdc $site.AppTokenOriginalRaveEdc $site.AppIdOriginalRaveModules $site.AppTokenOriginalRaveModules
 }
 
 function CreateConfigFileBackup($sourceFilePath)
 {
-    $backupFilePath = $sourceFilePath + ".BACKUP.$([datetime]::now.ToString('yyyy-MM-dd_HH-mm-ss'))"
-    Copy-Item $sourceFilePath $backupFilePath -Force
+	$backupFilePath = $sourceFilePath + ".BACKUP.$([datetime]::now.ToString('yyyy-MM-dd_HH-mm-ss'))"
+	Copy-Item $sourceFilePath $backupFilePath -Force
 }
 
 function UpdateRaveWebServicesWebConfig($rwsWebConfigFilePath, $appIdOriginalRaveEdc, $appTokenOriginalRaveEdc, $appIdOriginalRaveModules, $appTokenOriginalRaveModules)
 {
-    $rwsWebConfig = New-Object System.Xml.XmlDocument
-    $rwsWebConfig.Load($rwsWebConfigFilePath)
+	$rwsWebConfig = New-Object System.Xml.XmlDocument
+	$rwsWebConfig.Load($rwsWebConfigFilePath)
 
-    $iMedidataEdcAppId = $rwsWebConfig.SelectSingleNode("//add[@key = 'iMedidataEdcAppId']")
-    $iMedidataEdcAppId.value = $appIdOriginalRaveEdc
+	$iMedidataEdcAppId = $rwsWebConfig.SelectSingleNode("//add[@key = 'iMedidataEdcAppId']")
+	$iMedidataEdcAppId.value = $appIdOriginalRaveEdc
 
-    $iMedidataEdcAppToken = $rwsWebConfig.SelectSingleNode("//add[@key = 'iMedidataEdcAppToken']")
-    $iMedidataEdcAppToken.value = $appTokenOriginalRaveEdc
+	$iMedidataEdcAppToken = $rwsWebConfig.SelectSingleNode("//add[@key = 'iMedidataEdcAppToken']")
+	$iMedidataEdcAppToken.value = $appTokenOriginalRaveEdc
 
-    $iMedidataModulesAppId = $rwsWebConfig.SelectSingleNode("//add[@key = 'iMedidataModulesAppId']")
-    $iMedidataModulesAppId.value = $appIdOriginalRaveModules
+	$iMedidataModulesAppId = $rwsWebConfig.SelectSingleNode("//add[@key = 'iMedidataModulesAppId']")
+	$iMedidataModulesAppId.value = $appIdOriginalRaveModules
 
-    $iMedidataModulesAppToken = $rwsWebConfig.SelectSingleNode("//add[@key = 'iMedidataModulesAppToken']")
-    $iMedidataModulesAppToken.value = $appTokenOriginalRaveModules
+	$iMedidataModulesAppToken = $rwsWebConfig.SelectSingleNode("//add[@key = 'iMedidataModulesAppToken']")
+	$iMedidataModulesAppToken.value = $appTokenOriginalRaveModules
 
-    $rwsWebConfig.Save($rwsWebConfigFilePath)
+	$rwsWebConfig.Save($rwsWebConfigFilePath)
 }
 
 function UpdateMedidataRaveAppsettingsConfig($raveAppSettingsFilePath, $appIdOriginalRaveEdc, $appTokenOriginalRaveEdc, $appIdOriginalRaveModules, $appTokenOriginalRaveModules)
@@ -394,23 +394,23 @@ function UpdateMedidataRaveAppsettingsConfig($raveAppSettingsFilePath, $appIdOri
 
 function Restart-Services($node){
 	# Restart core service
-    $coreService = get-Service $node.CoreServiceName -ComputerName $node.ServerName -ErrorAction stop
-    Restart_SingleService $node $coreService
+	$coreService = get-Service $node.CoreServiceName -ComputerName $node.ServerName -ErrorAction stop
+	Restart_SingleService $node $coreService
 
 	# Restart integration service
-    $integrationService = get-Service $node.IntegrationServiceName -ComputerName $node.ServerName -ErrorAction stop
-    Restart_SingleService $node $integrationService
+	$integrationService = get-Service $node.IntegrationServiceName -ComputerName $node.ServerName -ErrorAction stop
+	Restart_SingleService $node $integrationService
 }
 
 function Restart-IIS($node){
 	$iis = get-Service "W3SVC" -ComputerName $node.ServerName -ErrorAction stop
-    Restart_SingleService $node $iis
+	Restart_SingleService $node $iis
 }
 
 function Restart_SingleService($node, $service){
-    try{
-	    Ope-CoreService $node $service "stop"
-	    Ope-CoreService $node $service "start"
+	try{
+		Ope-CoreService $node $service "stop"
+		Ope-CoreService $node $service "start"
 	}finally{
 		$service.Dispose()
 	}
@@ -439,7 +439,7 @@ function Ope-CoreService($node, $service, [string]$startOrStop){
 			if($tryTime -eq $maxRetryTimes) { throw }
 			$tryTime++
 		}
-            
+			
 		Log-Info ("The core service now is " + $service.Status)
 	}
 }
