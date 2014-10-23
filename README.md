@@ -1,13 +1,23 @@
-# CMP for MCC-XXXXX
+# CMP for MCC-132876
 The script is automatic process of below three CMPs.
 
 - http://cmptracker.mdsol.com/Modules/CMP/Complete/Completed.aspx?CMPNumber=71243
 - http://cmptracker.mdsol.com/Modules/CMP/Complete/Completed.aspx?CMPNumber=71416
 - http://cmptracker.mdsol.com/Modules/CMP/Complete/Completed.aspx?CMPNumber=71429
 
+The work involves:
+- connect to web server
+     -- update RWS web.config
+     -- update RAVE appsettings.config
+- connect to rave database
+     -- fix RISS_IntegratedApplicationsConfigurations
+     -- fix Configuration
+- Restart core service in all app Servers 
+- Restart IIS in all web Servers 
+- Restart all instances of the "Medidata Rave Integration Service"
+
 ## Affected Rave Versions
 Assembly Version of Medidata Rave® >= 5.6.5.144
-
 
 ## Prerequisites
 Powershell 3.0 or above.
@@ -15,16 +25,40 @@ Powershell 3.0 or above.
 ## Workflow of the script
 
 ### Workflow of patch mode
-1. Connect WHOIS database to get deployment information for all sites (or say "URL" in Medidata language) and their sibling nodes.
-2. Filter out those sites need to be patched.
-3. Loopily execute step 4~6 on each site.
-4.    Run SQL scripts against the database.
-5.    Modify `MedidataRave/appsettings.config` and `Medidata.RaveWebServices.Web/web.config`.
-6.    Restart IIS, core service, integration service.
-7.    If any error happens between step 4~6, insert one record into site's RavePatches table.
+1. Read "work" folder (at same level on file system as the Powershell script) to get list of sites to be patched (see How to Use - "work" folder file)
+2. Connect WHOIS database to get deployment information for all sites (or say "URL" in Medidata language) and their sibling nodes.
+3. Filter out those sites need to be patched.
+4. Loopily execute step 5~8 on each site.
+5.    Modify `Medidata.RaveWebServices.Web/web.config` and `MedidataRave/appsettings.config`.
+6.    Run SQL scripts against the database to fix RISS_IntegratedApplicationsConfigurations and fix Configuration
+7.    Restart IIS, core service, integration service.
+8.    If any error happens between step 4~6, insert one record into site's RavePatches table.
 
 
 ## How to use
+
+### Structure of files for running Powershell script
+.
++-- CMP-MCC132876.ps1 
++-- work
+|   +-- trainingj4.mdsol.com.json
+|   +-- test02.fake.mdsol.com.json
+
+### "work" folder file
+- Each site to be patched will have its own file 
+- The file name will be the name of the site followed by the .json extension e.g trainingj4.mdsol.com.json
+- Content of file:
+```
+{
+	"appIdOriginalRaveEdc" : "tocscvb1h9x",
+	"appTokenOriginalRaveEdc" : "0a6643d39f827747342800a6643d3",
+	"uuidOriginalRaveEdc" : "2b4a7352-fdef-11df-af92-12313x895625",
+	"appIdOriginalRaveModules" : "1kdlvwrjbf4",
+	"appTokenOriginalRaveModules" : "a17b5f2c40126a17b5f2c40126a17b5f2c40126",
+	"uuidOriginalRaveModule" : "8e17b59e-af92-fdef-11df-95625b02313"
+}
+```
+- The values for the above entries in the file are taken from the iMedidata database - apps table and are the values that RWS and Rave should use.
 
 ### Arguments
 
@@ -51,4 +85,4 @@ A new record like below will be inserted into the RavePatches table of each targ
 
 | id|	RaveVersion	|PatchNumber	|version	|Description	|DateApplied	|AppliedBy	|AppliedFrom	|Active	|AppServers	|WebServers	|Viewers	|BatchUploader	|NonSqlRun|
 |:---|:----------	|:-----------	|:-------	|:------------	|:------------	|-------	|-----------	|----	|--------	|-------	|-------	|-------	|-------|
-| 91|	5.6.5.144	|MCC-XXXXX	|1	| TBD	|2014-05-01 15:14:59.537|NULL|	NULL	|1	|NULL	|NULL|	NULL|	NULL|	NULL|
+| TBD|	5.6.5.144	|MCC-132876	|1	| Automate CMPs (71243, 71416, 71429) for fixing sites, which have duplicate iMedidata apps after upgrade to Rave 2014.2.0	|TBD|NULL|	NULL	|1	|NULL	|NULL|	NULL|	NULL|	NULL|
