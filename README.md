@@ -7,11 +7,11 @@ The script is automatic process of below three CMPs.
 
 The work involves:
 - connect to web server
-     -- update RWS web.config
-     -- update RAVE appsettings.config
+    * update RWS web.config
+    * update RAVE appsettings.config
 - connect to rave database
-     -- fix RISS_IntegratedApplicationsConfigurations
-     -- fix Configuration
+    * fix RISS_IntegratedApplicationsConfigurations
+    * fix Configuration
 - Restart core service in all app Servers 
 - Restart IIS in all web Servers 
 - Restart all instances of the "Medidata Rave Integration Service"
@@ -38,11 +38,13 @@ Powershell 3.0 or above.
 ## How to use
 
 ### Structure of files for running Powershell script
+```
 .
 +-- CMP-MCC132876.ps1 
 +-- work
 |   +-- trainingj4.mdsol.com.json
 |   +-- test02.fake.mdsol.com.json
+```
 
 ### "work" folder file
 - Each site to be patched will have its own file 
