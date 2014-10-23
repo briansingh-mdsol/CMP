@@ -42,13 +42,13 @@ Powershell 3.0 or above.
 .
 +-- CMP-MCC132876.ps1 
 +-- work
-|   +-- trainingj4.mdsol.com.json
+|   +-- test01.fake.mdsol.com.json
 |   +-- test02.fake.mdsol.com.json
 ```
 
-### "work" folder file
-- Each site to be patched will have its own file 
-- The file name will be the name of the site followed by the .json extension e.g trainingj4.mdsol.com.json
+### "work" folder json file
+- Each site to be patched will have its own json file 
+- The file name will be the name of the site followed by the .json extension e.g test01.fake.mdsol.com.json
 - Content of file:
 ```
 {
@@ -61,6 +61,23 @@ Powershell 3.0 or above.
 }
 ```
 - The values for the above entries in the file are taken from the iMedidata database - apps table and are the values that RWS and Rave should use.
+- The following SQL Query will obtain the correct values to use. NOTE: Each "base_url" will produce 2 rows (one for each of the app types - EDC and Modules). These 2 rows will need to be conbined as shown above in Content of file.
+```
+SELECT base_url AS 'file_name', CASE app_type_id
+		WHEN 1
+			THEN CONCAT ('{"appIdOriginalRaveEdc":"', api_id, '", "appTokenOriginalRaveEdc":"', api_token, '", "uuidOriginalRaveEdc":"', uuid, '"}')
+		ELSE CONCAT ('{"appIdOriginalRaveModules":"', api_id, '", "appTokenOriginalRaveModules":"', api_token, '", "uuidOriginalRaveModule":"', uuid, '"}')
+		END AS ''
+FROM apps
+WHERE base_url IN ('test01.fake.mdsol.com.json')
+	AND app_type_id IN (1, 4)
+GROUP BY file_name, app_type_id
+ORDER BY created_at ASC
+```
+| file_name|		|
+|:---|:----------	|
+| https://test01.fake.mdsol.com.json|	{"appIdOriginalRaveEdc":"tocscvb1h9x", "appTokenOriginalRaveEdc":"0a6643d39f827747342800a6643d3", "2b4a7352-fdef-11df-af92-12313x895625"}	|
+| https://test01.fake.mdsol.com.json|	{"appIdOriginalRaveModules":"1kdlvwrjbf4", "appTokenOriginalRaveModules":"a17b5f2c40126a17b5f2c40126a17b5f2c40126", "uuidOriginalRaveModule":"8e17b59e-af92-fdef-11df-95625b02313"}	|
 
 ### Arguments
 
