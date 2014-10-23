@@ -48,7 +48,7 @@ Powershell 3.0 or above.
 
 ### "work" folder json file
 - Each site to be patched will have its own json file 
-- The file name will be the name of the site followed by the .json extension e.g test01.fake.mdsol.com.json
+- The file name will be the name of the site followed by the .json extension e.g `test01.fake.mdsol.com.json`
 - Content of file:
 ```
 {
@@ -60,8 +60,8 @@ Powershell 3.0 or above.
 	"uuidOriginalRaveModule" : "8e17b59e-af92-fdef-11df-95625b02313"
 }
 ```
-- The values for the above entries in the file are taken from the iMedidata database - apps table and are the values that RWS and Rave should use.
-- The following SQL Query will obtain the correct values to use. NOTE: Each "base_url" will produce 2 rows (one for each of the app types - EDC and Modules). These 2 rows will need to be conbined as shown above in Content of file.
+- The values for the above entries in the file are taken from the iMedidata database - apps table and are the values that `RWS` and `Rave` should use.
+- The following SQL Query will obtain the correct values to use. NOTE: Each **"base_url"** will produce 2 rows (one for each of the app types - `EDC` and `Modules`). These 2 rows will need to be combined as shown above in **Content of file**
 ```
 SELECT base_url AS 'file_name', CASE app_type_id
 		WHEN 1
