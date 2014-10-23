@@ -32,8 +32,8 @@ Add-Type -AssemblyName "System.IO"
 Add-Type -AssemblyName "System.Transactions"
 
 $minPowerShellVersion = 3
-$patchNumber = "MCC-12345" # TODO get correct patch number 
-$patchDescription = "Fix iMedidata Duplicate Apps Issue Caused By Original Rave 2014.2.0 installation" # TODO get correct description 
+$patchNumber = "MCC-132876"
+$patchDescription = "Automate CMPs (71243, 71416, 71429) for fixing sites, which have duplicate iMedidata apps after upgrade to Rave 2014.2.0"
 
 if([string]::IsNullOrEmpty($whoisUser) -or [string]::IsNullOrEmpty($whoisPwd))
 {	
