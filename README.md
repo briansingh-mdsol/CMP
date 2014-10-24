@@ -76,13 +76,13 @@ ORDER BY created_at ASC
 ```
 | file_name|		|
 |:---|:----------	|
-| https://test01.fake.mdsol.com.json|	{"appIdOriginalRaveEdc":"tocscvb1h9x", "appTokenOriginalRaveEdc":"0a6643d39f827747342800a6643d3", "2b4a7352-fdef-11df-af92-12313x895625"}	|
-| https://test01.fake.mdsol.com.json|	{"appIdOriginalRaveModules":"1kdlvwrjbf4", "appTokenOriginalRaveModules":"a17b5f2c40126a17b5f2c40126a17b5f2c40126", "uuidOriginalRaveModule":"8e17b59e-af92-fdef-11df-95625b02313"}	|
+| test01.fake.mdsol.com.json|	{"appIdOriginalRaveEdc":"tocscvb1h9x", "appTokenOriginalRaveEdc":"0a6643d39f827747342800a6643d3", "2b4a7352-fdef-11df-af92-12313x895625"}	|
+| test01.fake.mdsol.com.json|	{"appIdOriginalRaveModules":"1kdlvwrjbf4", "appTokenOriginalRaveModules":"a17b5f2c40126a17b5f2c40126a17b5f2c40126", "uuidOriginalRaveModule":"8e17b59e-af92-fdef-11df-95625b02313"}	|
 
 ### Arguments
 
 ```
-PS ~> .\CMP-MCCXXXXX.ps1 $whoisServerName [$whoisUser] [$whoisPwd] [$logFolder] [$serviceTimeoutSeconds] [$maxRetryTimes]
+PS ~> .\CMP-MCC132876.ps1 $whoisServerName [$whoisUser] [$whoisPwd] [$logFolder] [$serviceTimeoutSeconds] [$maxRetryTimes]
 ```
 
 - **-whoisServerName** is the server name of WHOIS database and is required.
