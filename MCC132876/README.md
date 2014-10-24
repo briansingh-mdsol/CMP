@@ -63,7 +63,7 @@ Powershell 3.0 or above.
 - The values for the above entries in the file are taken from the iMedidata database - apps table and are the values that `RWS` and `Rave` should use.
 - The following SQL Query will obtain the correct values to use. NOTE: Each **"base_url"** will produce 2 rows (one for each of the app types - `EDC` and `Modules`). These 2 rows will need to be combined as shown above in **Content of file**
 ```sql
-SELECT base_url AS 'file_name', CASE app_type_id
+SELECT REPLACE(base_url, 'https://', '') AS 'file_name', CASE app_type_id
 		WHEN 1
 			THEN CONCAT ('{"appIdOriginalRaveEdc":"', api_id, '", "appTokenOriginalRaveEdc":"', api_token, '", "uuidOriginalRaveEdc":"', uuid, '"}')
 		ELSE CONCAT ('{"appIdOriginalRaveModules":"', api_id, '", "appTokenOriginalRaveModules":"', api_token, '", "uuidOriginalRaveModule":"', uuid, '"}')
